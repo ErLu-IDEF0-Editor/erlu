@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/greg/qt-idef/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

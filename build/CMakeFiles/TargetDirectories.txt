@@ -1,0 +1,5 @@
+/home/greg/qt-idef/build/CMakeFiles/idef0_editor.dir
+/home/greg/qt-idef/build/CMakeFiles/edit_cache.dir
+/home/greg/qt-idef/build/CMakeFiles/rebuild_cache.dir
+/home/greg/qt-idef/build/CMakeFiles/idef0_editor_autogen_timestamp_deps.dir
+/home/greg/qt-idef/build/CMakeFiles/idef0_editor_autogen.dir
