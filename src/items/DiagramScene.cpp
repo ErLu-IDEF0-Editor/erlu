@@ -19,11 +19,7 @@ DiagramScene::DiagramScene(QObject* parent)
   const qreal w = 1122;
   const qreal h = 793;
   setSceneRect(-w * 0.5, -h * 0.5, w, h);
-  auto* frame = addRect(sceneRect(), QPen(QColor(80, 80, 80), 1.5, Qt::DashLine), Qt::NoBrush);
-  frame->setZValue(-5);
-  frame->setEnabled(false);
-  frame->setAcceptedMouseButtons(Qt::NoButton);
-  frame->setData(0, QVariant(QStringLiteral("static-frame")));
+  ensureFrame();
   pushSnapshot();
 }
 
@@ -362,16 +358,8 @@ DiagramScene::Snapshot DiagramScene::captureSnapshot() const {
 void DiagramScene::restoreSnapshot(const Snapshot& snap) {
   m_restoringSnapshot = true;
   cancelCurrentDrag();
-  // Clear dynamic items but keep the static frame.
-  QList<QGraphicsItem*> toRemove;
-  for (QGraphicsItem* it : items()) {
-    if (it->data(0).toString() == QStringLiteral("static-frame")) continue;
-    toRemove.append(it);
-  }
-  for (QGraphicsItem* it : toRemove) {
-    removeItem(it);
-    delete it;
-  }
+  clear();
+  ensureFrame();
 
   m_nextBlockId = 1;
   m_nextJunctionId = 1;
@@ -425,6 +413,7 @@ void DiagramScene::restoreSnapshot(const Snapshot& snap) {
   }
 
   m_restoringSnapshot = false;
+  resetHistory(captureSnapshot());
 }
 
 void DiagramScene::pushSnapshot() {
@@ -452,7 +441,52 @@ void DiagramScene::undo() {
   restoreSnapshot(m_history[m_historyIndex]);
 }
 
+bool DiagramScene::goDownIntoSelected() {
+  const auto sel = selectedItems();
+  if (sel.size() != 1) return false;
+  auto* b = qgraphicsitem_cast<BlockItem*>(sel.first());
+  if (!b) return false;
+
+  return goDownIntoBlock(b);
+}
+
+bool DiagramScene::goUp() {
+  if (m_hierarchy.isEmpty()) return false;
+  Snapshot child = captureSnapshot();
+  m_children[m_currentBlockId] = child;
+  const HierNode parent = m_hierarchy.takeLast();
+  m_currentBlockId = parent.blockId;
+  restoreSnapshot(parent.snapshot);
+  return true;
+}
+
+bool DiagramScene::goDownIntoBlock(BlockItem* b) {
+  if (!b) return false;
+  Snapshot current = captureSnapshot();
+  m_hierarchy.push_back({m_currentBlockId, current});
+  m_currentBlockId = b->id();
+  Snapshot child = m_children.value(m_currentBlockId, Snapshot{});
+  restoreSnapshot(child);
+  return true;
+}
+
 void DiagramScene::mousePressEvent(QGraphicsSceneMouseEvent* e) {
+  if (e->button() == Qt::MiddleButton) {
+    const auto itemsUnder = items(e->scenePos());
+    for (QGraphicsItem* it : itemsUnder) {
+      if (auto* b = qgraphicsitem_cast<BlockItem*>(it)) {
+        if (goDownIntoBlock(b)) {
+          e->accept();
+          return;
+        }
+      }
+    }
+    if (goUp()) {
+      e->accept();
+      return;
+    }
+  }
+
   if (e->button() == Qt::LeftButton) {
     if (e->modifiers().testFlag(Qt::ControlModifier)) {
       if (tryBranchAtArrow(e->scenePos())) {
@@ -526,6 +560,18 @@ void DiagramScene::keyPressEvent(QKeyEvent* e) {
     e->accept();
     return;
   }
+  if ((e->key() == Qt::Key_Down || e->key() == Qt::Key_PageDown) && e->modifiers().testFlag(Qt::ControlModifier)) {
+    if (goDownIntoSelected()) {
+      e->accept();
+      return;
+    }
+  }
+  if ((e->key() == Qt::Key_Up || e->key() == Qt::Key_PageUp) && e->modifiers().testFlag(Qt::ControlModifier)) {
+    if (goUp()) {
+      e->accept();
+      return;
+    }
+  }
   QGraphicsScene::keyPressEvent(e);
 }
 
@@ -567,18 +613,20 @@ void DiagramScene::deleteSelection() {
     }
   }
 
-  // delete arrows first to avoid dangling removal from deleted blocks/junctions
+  QVector<ArrowItem*> arrowsToDelete;
+  QVector<QGraphicsItem*> othersToDelete;
   for (QGraphicsItem* it : toDelete) {
-    if (qgraphicsitem_cast<ArrowItem*>(it)) {
-      removeItem(it);
-      delete it;
+    if (it->type() == ArrowItem::Type) {
+      if (auto* a = static_cast<ArrowItem*>(it)) arrowsToDelete.push_back(a);
+    } else {
+      othersToDelete.push_back(it);
     }
   }
-  for (QGraphicsItem* it : toDelete) {
-    if (!qgraphicsitem_cast<ArrowItem*>(it)) {
-      removeItem(it);
-      delete it;
-    }
+  for (ArrowItem* a : arrowsToDelete) {
+    delete a;
+  }
+  for (QGraphicsItem* it : othersToDelete) {
+    delete it;
   }
 
   if (!toDelete.isEmpty()) pushSnapshot();
@@ -601,4 +649,27 @@ void DiagramScene::maybeSnapshotMovedItems() {
   }
   m_pressPositions.clear();
   if (moved) pushSnapshot();
+}
+
+void DiagramScene::resetHistory(const Snapshot& base) {
+  m_history.clear();
+  m_history.push_back(base);
+  m_historyIndex = 0;
+}
+
+void DiagramScene::ensureFrame() {
+  bool exists = false;
+  for (QGraphicsItem* it : items()) {
+    if (it->data(0).toString() == QStringLiteral("static-frame")) {
+      exists = true;
+      break;
+    }
+  }
+  if (!exists) {
+    auto* frame = addRect(sceneRect(), QPen(QColor(80, 80, 80), 1.5, Qt::DashLine), Qt::NoBrush);
+    frame->setZValue(-5);
+    frame->setEnabled(false);
+    frame->setAcceptedMouseButtons(Qt::NoButton);
+    frame->setData(0, QVariant(QStringLiteral("static-frame")));
+  }
 }

@@ -22,7 +22,9 @@ public:
   void setId(int id) { m_id = id; }
 
   QPointF portScenePos(Port p) const;
+  QPair<QPointF, QPointF> portSegment(Port p) const;
   bool hitTestPort(const QPointF& scenePos, Port* outPort, QPointF* outLocalPos = nullptr, qreal radiusPx = 10.0) const;
+  QPointF portLocalPos(Port p) const;
 
   void addArrow(ArrowItem* a);
   void removeArrow(ArrowItem* a);
@@ -39,7 +41,4 @@ private:
   QRectF m_rect;          // local rect
   int m_id;
   QSet<ArrowItem*> m_arrows;
-
-  QPointF portLocalPos(Port p) const;
-  QPair<QPointF, QPointF> portSegment(Port p) const;
 };

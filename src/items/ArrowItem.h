@@ -45,7 +45,7 @@ public:
   std::optional<QPointF> hitTest(const QPointF& scenePos, qreal radius) const;
 
 private:
-  enum class DragPart { None, BendX, TopHorizontal, BottomHorizontal };
+  enum class DragPart { None, BendX, TopHorizontal, BottomHorizontal, FromEnd, ToEnd };
 
   Endpoint m_from;
   Endpoint m_to;
@@ -77,4 +77,5 @@ protected:
   void mouseMoveEvent(QGraphicsSceneMouseEvent* e) override;
   void mouseReleaseEvent(QGraphicsSceneMouseEvent* e) override;
   void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) override;
+  bool adjustEndpoint(Endpoint& ep, const QPointF& delta);
 };

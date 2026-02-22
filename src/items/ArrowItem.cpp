@@ -66,6 +66,47 @@ void ArrowItem::setLabelOffset(const QPointF& off) {
   updateLabelItem(m_lastPolyline.isEmpty() ? computePolyline() : m_lastPolyline);
 }
 
+bool ArrowItem::adjustEndpoint(Endpoint& ep, const QPointF& delta) {
+  if (ep.block) {
+    auto seg = ep.block->portSegment(ep.port);
+    QPointF local = ep.localPos.value_or(ep.block->portLocalPos(ep.port));
+    local += ep.block->mapFromScene(delta);
+    if (qFuzzyCompare(seg.first.x(), seg.second.x())) {
+      local.setX(seg.first.x());
+      local.setY(std::clamp(local.y(), seg.first.y(), seg.second.y()));
+    } else {
+      local.setY(seg.first.y());
+      local.setX(std::clamp(local.x(), seg.first.x(), seg.second.x()));
+    }
+    ep.localPos = local;
+    return true;
+  }
+  if (ep.scenePos) {
+    QPointF p = *ep.scenePos + delta;
+    if (scene()) {
+      const QRectF r = scene()->sceneRect();
+      // snap to nearest edge it was originally on
+      const qreal tol = 4.0;
+      if (std::abs(ep.scenePos->x() - r.left()) < tol) {
+        p.setX(r.left());
+        p.setY(std::clamp(p.y(), r.top(), r.bottom()));
+      } else if (std::abs(ep.scenePos->x() - r.right()) < tol) {
+        p.setX(r.right());
+        p.setY(std::clamp(p.y(), r.top(), r.bottom()));
+      } else if (std::abs(ep.scenePos->y() - r.top()) < tol) {
+        p.setY(r.top());
+        p.setX(std::clamp(p.x(), r.left(), r.right()));
+      } else if (std::abs(ep.scenePos->y() - r.bottom()) < tol) {
+        p.setY(r.bottom());
+        p.setX(std::clamp(p.x(), r.left(), r.right()));
+      }
+    }
+    ep.scenePos = p;
+    return true;
+  }
+  return false;
+}
+
 void ArrowItem::setFrom(const Endpoint& ep) {
   if (m_from.block) m_from.block->removeArrow(this);
   if (m_from.junction) m_from.junction->removeArrow(this);
@@ -394,6 +435,13 @@ QVector<QPointF> ArrowItem::computePolyline() const {
                                     : QPointF(0, ((a - b).y() >= 0 ? 1 : -1)),
                                   QPointF(-1,0))
                    : portDirection(m_to, false, QPointF(-1,0), scene());
+  // ensure right border always behaves like an input (approach from left)
+  if (!m_hasTempEnd && m_to.scenePos && scene()) {
+    const qreal rightX = scene()->sceneRect().right();
+    if (almostEqual(m_to.scenePos->x(), rightX)) {
+      dirB = QPointF(-1, 0);
+    }
+  }
 
   auto expandRect = [](const QRectF& r, qreal m) {
     return QRectF(r.x()-m, r.y()-m, r.width()+2*m, r.height()+2*m);
@@ -594,6 +642,22 @@ void ArrowItem::mousePressEvent(QGraphicsSceneMouseEvent* e) {
   const QVector<QPointF> pts = computePolyline();
   const QPointF pos = e->scenePos();
 
+  // Проверим, не жмем ли по началу/концу для сдвига точки соединения.
+  if (!pts.isEmpty()) {
+    if (QLineF(pos, pts.first()).length() <= tol) {
+      m_dragPart = DragPart::FromEnd;
+      m_lastDragScenePos = pos;
+      e->accept();
+      return;
+    }
+    if (QLineF(pos, pts.last()).length() <= tol) {
+      m_dragPart = DragPart::ToEnd;
+      m_lastDragScenePos = pos;
+      e->accept();
+      return;
+    }
+  }
+
   m_dragPart = DragPart::None;
   int closestIdx = -1;
   qreal best = tol;
@@ -637,6 +701,25 @@ void ArrowItem::mouseMoveEvent(QGraphicsSceneMouseEvent* e) {
     return;
   }
 
+  if (m_dragPart == DragPart::FromEnd) {
+    const QPointF delta = e->scenePos() - m_lastDragScenePos;
+    m_lastDragScenePos = e->scenePos();
+    if (adjustEndpoint(m_from, delta)) {
+      updatePath();
+    }
+    e->accept();
+    return;
+  }
+  if (m_dragPart == DragPart::ToEnd) {
+    const QPointF delta = e->scenePos() - m_lastDragScenePos;
+    m_lastDragScenePos = e->scenePos();
+    if (adjustEndpoint(m_to, delta)) {
+      updatePath();
+    }
+    e->accept();
+    return;
+  }
+
   if (m_dragPart == DragPart::None) {
     QGraphicsPathItem::mouseMoveEvent(e);
     return;
@@ -666,6 +749,15 @@ void ArrowItem::mouseMoveEvent(QGraphicsSceneMouseEvent* e) {
 void ArrowItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* e) {
   if (m_labelDragging && e->button() == Qt::LeftButton) {
     m_labelDragging = false;
+    unsetCursor();
+    if (auto* ds = qobject_cast<DiagramScene*>(scene())) {
+      ds->requestSnapshot();
+    }
+    e->accept();
+    return;
+  }
+  if ((m_dragPart == DragPart::FromEnd || m_dragPart == DragPart::ToEnd) && e->button() == Qt::LeftButton) {
+    m_dragPart = DragPart::None;
     unsetCursor();
     if (auto* ds = qobject_cast<DiagramScene*>(scene())) {
       ds->requestSnapshot();

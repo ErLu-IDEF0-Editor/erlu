@@ -14,6 +14,9 @@ public:
   BlockItem* createBlockAt(const QPointF& scenePos);
   BlockItem* createBlockWithId(const QPointF& scenePos, int id, const QString& title);
   void requestSnapshot();
+  bool goDownIntoSelected();
+  bool goDownIntoBlock(BlockItem* b);
+  bool goUp();
 
 protected:
   void mousePressEvent(QGraphicsSceneMouseEvent* e) override;
@@ -22,23 +25,6 @@ protected:
   void keyPressEvent(QKeyEvent* e) override;
 
 private:
-  ArrowItem* m_dragArrow = nullptr;
-  QPointer<BlockItem> m_dragFromBlock;
-  QPointer<JunctionItem> m_dragFromJunction;
-  BlockItem::Port m_dragFromPort = BlockItem::Port::Output;
-  int m_nextBlockId = 1;
-  int m_nextJunctionId = 1;
-  bool m_snapshotScheduled = false;
-  bool m_restoringSnapshot = false;
-  bool m_itemDragActive = false;
-  QHash<QGraphicsItem*, QPointF> m_pressPositions;
-
-  bool tryStartArrowDrag(const QPointF& scenePos);
-  bool tryFinishArrowDrag(const QPointF& scenePos);
-  bool tryBranchAtArrow(const QPointF& scenePos);
-  void cancelCurrentDrag();
-  void deleteSelection();
-
   struct Snapshot {
     struct Endpoint {
       enum class Kind { None, Block, Junction, Scene } kind = Kind::None;
@@ -63,6 +49,28 @@ private:
     QVector<Arrow> arrows;
   };
 
+  struct HierNode { int blockId; Snapshot snapshot; };
+
+  ArrowItem* m_dragArrow = nullptr;
+  QPointer<BlockItem> m_dragFromBlock;
+  QPointer<JunctionItem> m_dragFromJunction;
+  BlockItem::Port m_dragFromPort = BlockItem::Port::Output;
+  int m_nextBlockId = 1;
+  int m_nextJunctionId = 1;
+  bool m_snapshotScheduled = false;
+  bool m_restoringSnapshot = false;
+  bool m_itemDragActive = false;
+  QHash<QGraphicsItem*, QPointF> m_pressPositions;
+  int m_currentBlockId = -1;
+  QVector<HierNode> m_hierarchy;
+  QHash<int, Snapshot> m_children; // blockId -> saved child diagram
+
+  bool tryStartArrowDrag(const QPointF& scenePos);
+  bool tryFinishArrowDrag(const QPointF& scenePos);
+  bool tryBranchAtArrow(const QPointF& scenePos);
+  void cancelCurrentDrag();
+  void deleteSelection();
+
   QVector<Snapshot> m_history;
   int m_historyIndex = -1;
 
@@ -72,6 +80,8 @@ private:
   void scheduleSnapshot();
   void undo();
   void maybeSnapshotMovedItems();
+  void resetHistory(const Snapshot& base);
+  void ensureFrame();
 
   enum class Edge { None, Left, Right, Top, Bottom };
   Edge hitTestEdge(const QPointF& scenePos, QPointF* outScenePoint = nullptr) const;
