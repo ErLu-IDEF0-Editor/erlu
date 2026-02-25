@@ -10,16 +10,32 @@
 #include <QCursor>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QDebug>
+#include <QObject>
 #include "DiagramScene.h"
 #include <algorithm>
+#include <QSet>
 #include <queue>
 #include <vector>
 #include <limits>
+#include <utility>
+
+static bool almostEqual(qreal a, qreal b, qreal eps = 1e-6);
+static bool almostEqual(const QPointF& a, const QPointF& b, qreal eps = 1e-6);
+static QPointF scenePortPos(const ArrowItem::Endpoint& ep);
+
+static QRectF labelDragHitRect(const QGraphicsSimpleTextItem* item) {
+  if (!item || !item->isVisible()) return QRectF();
+  // Generous hit area makes label dragging much less fiddly.
+  return item->sceneBoundingRect().adjusted(-16, -10, 16, 10);
+}
+QColor ArrowItem::s_lineColor = QColor(10, 10, 10);
+QColor ArrowItem::s_textColor = QColor(10, 10, 10);
 
 ArrowItem::ArrowItem(QGraphicsItem* parent)
   : QGraphicsPathItem(parent)
 {
-  QPen pen(QColor(10,10,10));
+  QPen pen(s_lineColor);
   pen.setWidthF(1.4);
   pen.setCapStyle(Qt::RoundCap);
   pen.setJoinStyle(Qt::RoundJoin);
@@ -28,13 +44,19 @@ ArrowItem::ArrowItem(QGraphicsItem* parent)
 
   setAcceptHoverEvents(true);
   setAcceptedMouseButtons(Qt::LeftButton);
+  setFlag(QGraphicsItem::ItemIsSelectable, true);
 
   m_labelItem = new QGraphicsSimpleTextItem(this);
-  m_labelItem->setBrush(QColor(10, 10, 10));
+  m_labelItem->setBrush(s_textColor);
   m_labelItem->setZValue(2);
   m_labelItem->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
   m_labelItem->setVisible(false);
   m_labelOffset = QPointF(0, 0);
+}
+
+void ArrowItem::setVisualTheme(const QColor& lineColor, const QColor& textColor) {
+  s_lineColor = lineColor;
+  s_textColor = textColor;
 }
 
 ArrowItem::~ArrowItem() {
@@ -49,7 +71,7 @@ void ArrowItem::setLabel(const QString& text) {
   m_label = text;
   if (m_labelItem) {
     m_labelItem->setText(m_label);
-    m_labelItem->setVisible(!m_label.isEmpty());
+    m_labelItem->setVisible(!m_label.isEmpty() && !m_labelHidden);
   }
   updateLabelItem(computePolyline());
 }
@@ -64,6 +86,65 @@ void ArrowItem::setOffsets(qreal bend, qreal top, qreal bottom) {
 void ArrowItem::setLabelOffset(const QPointF& off) {
   m_labelOffset = off;
   updateLabelItem(m_lastPolyline.isEmpty() ? computePolyline() : m_lastPolyline);
+}
+
+void ArrowItem::setLabelHidden(bool hidden) {
+  m_labelHidden = hidden;
+  updateLabelItem(m_lastPolyline.isEmpty() ? computePolyline() : m_lastPolyline);
+}
+
+void ArrowItem::setLabelInherited(bool inherited) {
+  m_labelInherited = inherited;
+}
+
+void ArrowItem::setLabelSource(ArrowItem* src) {
+  m_labelSource = src;
+}
+
+ArrowItem* ArrowItem::labelSourceRoot() const {
+  const ArrowItem* cur = this;
+  QSet<const ArrowItem*> visited;
+  while (cur) {
+    if (visited.contains(cur)) break;
+    visited.insert(cur);
+    if (!cur->m_labelSource) return const_cast<ArrowItem*>(cur);
+    cur = cur->m_labelSource;
+  }
+  return const_cast<ArrowItem*>(cur);
+}
+
+void ArrowItem::setInterfaceStub(const Endpoint& edge, const QString& label) {
+  m_isInterface = true;
+  m_interfaceStubOnly = true;
+  m_labelLocked = true;
+  m_labelHidden = false;
+  m_interfaceEdge = edge;
+  setLabel(label);
+
+  const QPointF posScene = scenePortPos(edge);
+  Endpoint stub = edge;
+  stub.scenePos = posScene;
+  stub.block = nullptr;
+  stub.junction = nullptr;
+  stub.localPos.reset();
+
+  setFrom(stub);
+  setTo(stub);
+  finalize();
+}
+
+void ArrowItem::resetInterfaceStub() {
+  if (!m_isInterface || !m_interfaceEdge) return;
+  setInterfaceStub(*m_interfaceEdge, m_label);
+}
+
+void ArrowItem::setInterfaceIsStub(bool stub) {
+  m_interfaceStubOnly = stub;
+  updatePath();
+}
+
+void ArrowItem::setLabelLocked(bool locked) {
+  m_labelLocked = locked;
 }
 
 bool ArrowItem::adjustEndpoint(Endpoint& ep, const QPointF& delta) {
@@ -84,7 +165,11 @@ bool ArrowItem::adjustEndpoint(Endpoint& ep, const QPointF& delta) {
   if (ep.scenePos) {
     QPointF p = *ep.scenePos + delta;
     if (scene()) {
-      const QRectF r = scene()->sceneRect();
+      QRectF r = scene()->sceneRect();
+      if (auto* ds = qobject_cast<DiagramScene*>(scene())) {
+        const QRectF cr = ds->contentRect();
+        if (!cr.isNull()) r = cr;
+      }
       // snap to nearest edge it was originally on
       const qreal tol = 4.0;
       if (std::abs(ep.scenePos->x() - r.left()) < tol) {
@@ -165,11 +250,11 @@ static QPointF normalizedOr(const QPointF& v, const QPointF& fallback) {
   return v / len;
 }
 
-static bool almostEqual(qreal a, qreal b, qreal eps = 1e-6) {
+static bool almostEqual(qreal a, qreal b, qreal eps) {
   return std::abs(a - b) < eps;
 }
 
-static bool almostEqual(const QPointF& a, const QPointF& b, qreal eps = 1e-6) {
+static bool almostEqual(const QPointF& a, const QPointF& b, qreal eps) {
   return almostEqual(a.x(), b.x(), eps) && almostEqual(a.y(), b.y(), eps);
 }
 
@@ -423,6 +508,11 @@ QVector<QPointF> ArrowItem::simplifyPolyline(const QVector<QPointF>& ptsIn) {
 }
 
 QVector<QPointF> ArrowItem::computePolyline() const {
+  if (m_isInterface && m_interfaceStubOnly && m_interfaceEdge) {
+    const QPointF p = scenePortPos(*m_interfaceEdge);
+    return {p, p};
+  }
+
   const qreal gap = 24.0;
   QPointF a = scenePortPos(m_from);
   QPointF b = m_hasTempEnd ? m_tempEndScene : scenePortPos(m_to);
@@ -532,7 +622,19 @@ std::optional<QPointF> ArrowItem::hitTest(const QPointF& scenePos, qreal radius)
 
 void ArrowItem::updateLabelItem(const QVector<QPointF>& pts) {
   if (!m_labelItem) return;
-  if (m_label.isEmpty() || pts.size() < 2) {
+  const bool stubOnly = m_isInterface && m_interfaceStubOnly && m_interfaceEdge;
+  if (stubOnly) {
+    if (m_label.isEmpty() || m_labelHidden) {
+      m_labelItem->setVisible(false);
+      return;
+    }
+    const QPointF p = scenePortPos(*m_interfaceEdge);
+    const QRectF br = m_labelItem->boundingRect();
+    m_labelItem->setPos(p + m_labelOffset + QPointF(10, -br.height() * 0.5));
+    m_labelItem->setVisible(true);
+    return;
+  }
+  if (m_labelHidden || m_label.isEmpty() || pts.size() < 2) {
     m_labelItem->setVisible(false);
     return;
   }
@@ -571,21 +673,37 @@ void ArrowItem::updateLabelItem(const QVector<QPointF>& pts) {
 
 // Обновляем маршрут ортогонально, добавляя/схлопывая сегменты при необходимости.
 void ArrowItem::updatePath() {
+  QPen themedPen = pen();
+  themedPen.setColor(s_lineColor);
+  setPen(themedPen);
+  if (m_labelItem) {
+    m_labelItem->setBrush(s_textColor);
+  }
+
   const QRectF oldSceneRect = mapRectToScene(boundingRect());
 
   QVector<QPointF> pts = computePolyline();
   m_lastPolyline = pts;
 
   QPainterPath p;
-  if (!pts.isEmpty()) {
+  const bool stubOnly = m_isInterface && m_interfaceStubOnly;
+  if (!pts.isEmpty() && !stubOnly) {
     p.moveTo(pts.first());
     for (int i = 1; i < pts.size(); ++i) {
       p.lineTo(pts[i]);
     }
   }
 
+  // interface stub circle at edge
+  if (m_isInterface && m_interfaceEdge && m_interfaceStubOnly) {
+    const QPointF stubPos = scenePortPos(*m_interfaceEdge);
+    const qreal r = 6.0;
+    p.addEllipse(stubPos, r, r);
+  }
+
   // наконечник стрелки
-  if (pts.size() >= 2) {
+  // Draw arrow head only if the path truly ends (not branching through a junction).
+  if (!stubOnly && pts.size() >= 2 && !m_to.junction) {
     const QPointF tip = pts.last();
     const QPointF from = pts[pts.size() - 2];
     drawArrowHead(p, tip, from);
@@ -605,9 +723,18 @@ void ArrowItem::updatePath() {
 }
 
 void ArrowItem::hoverMoveEvent(QGraphicsSceneHoverEvent* e) {
+  // Keep label geometry in sync before hit-testing drag area.
+  updateLabelItem(m_lastPolyline.isEmpty() ? computePolyline() : m_lastPolyline);
+
   const qreal tol = 6.0;
   const QVector<QPointF> pts = computePolyline();
   QPointF pos = e->scenePos();
+
+  if (!m_labelLocked && m_labelItem && labelDragHitRect(m_labelItem).contains(pos)) {
+    setCursor(Qt::SizeAllCursor);
+    QGraphicsPathItem::hoverMoveEvent(e);
+    return;
+  }
 
   Qt::CursorShape cursor = Qt::ArrowCursor;
   for (int i = 0; i + 1 < pts.size(); ++i) {
@@ -629,8 +756,10 @@ void ArrowItem::mousePressEvent(QGraphicsSceneMouseEvent* e) {
     return;
   }
 
-  if (m_labelItem && m_labelItem->isVisible() &&
-      m_labelItem->sceneBoundingRect().adjusted(-6, -4, 6, 4).contains(e->scenePos())) {
+  // Keep label geometry in sync before hit-testing drag area.
+  updateLabelItem(m_lastPolyline.isEmpty() ? computePolyline() : m_lastPolyline);
+
+  if (!m_labelLocked && m_labelItem && labelDragHitRect(m_labelItem).contains(e->scenePos())) {
     m_labelDragging = true;
     m_labelDragLastScene = e->scenePos();
     setCursor(Qt::SizeAllCursor);
@@ -642,15 +771,16 @@ void ArrowItem::mousePressEvent(QGraphicsSceneMouseEvent* e) {
   const QVector<QPointF> pts = computePolyline();
   const QPointF pos = e->scenePos();
 
-  // Проверим, не жмем ли по началу/концу для сдвига точки соединения.
+  // Shift+drag endpoint: slide connection along the same side.
+  const bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
   if (!pts.isEmpty()) {
-    if (QLineF(pos, pts.first()).length() <= tol) {
+    if (shift && QLineF(pos, pts.first()).length() <= tol) {
       m_dragPart = DragPart::FromEnd;
       m_lastDragScenePos = pos;
       e->accept();
       return;
     }
-    if (QLineF(pos, pts.last()).length() <= tol) {
+    if (shift && QLineF(pos, pts.last()).length() <= tol) {
       m_dragPart = DragPart::ToEnd;
       m_lastDragScenePos = pos;
       e->accept();
@@ -738,6 +868,8 @@ void ArrowItem::mouseMoveEvent(QGraphicsSceneMouseEvent* e) {
     case DragPart::BottomHorizontal:
       m_bottomOffset += delta.y();
       break;
+    case DragPart::FromEnd:
+    case DragPart::ToEnd:
     case DragPart::None:
       break;
   }
@@ -778,12 +910,18 @@ void ArrowItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* e) {
 }
 
 void ArrowItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) {
-  if (e->button() == Qt::LeftButton) {
+  if (e->button() == Qt::LeftButton && !m_labelLocked) {
     bool ok = false;
-    const QString text = QInputDialog::getText(nullptr, "Arrow label", "Label:", QLineEdit::Normal, m_label, &ok);
+    const QString text = QInputDialog::getText(nullptr, QObject::tr("Arrow label"), QObject::tr("Label:"), QLineEdit::Normal, m_label, &ok);
     if (ok) {
       setLabel(text);
+      setLabelHidden(false);
+      setLabelInherited(false);
+      setLabelSource(nullptr);
       if (text.isEmpty()) m_labelOffset = QPointF();
+      if (auto* ds = qobject_cast<DiagramScene*>(scene())) {
+        ds->propagateLabelFrom(this);
+      }
     }
     e->accept();
     return;

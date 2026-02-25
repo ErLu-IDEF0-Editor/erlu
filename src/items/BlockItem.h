@@ -1,6 +1,8 @@
 #pragma once
 #include <QGraphicsObject>
 #include <QSet>
+#include <optional>
+#include <QColor>
 
 class ArrowItem;
 
@@ -18,6 +20,10 @@ public:
 
   QString title() const { return m_title; }
   void setTitle(const QString& t);
+  QString number() const { return m_number; }
+  void setNumber(const QString& n);
+  bool hasDecomposition() const { return m_hasDecomposition; }
+  void setHasDecomposition(bool v) { m_hasDecomposition = v; update(); }
   int id() const { return m_id; }
   void setId(int id) { m_id = id; }
 
@@ -29,6 +35,15 @@ public:
   void addArrow(ArrowItem* a);
   void removeArrow(ArrowItem* a);
 
+  std::optional<qreal> price() const { return m_price; }
+  void setPrice(std::optional<qreal> price);
+  static void setCurrencyFormat(const QString& symbol, const QString& placement);
+  static void setVisualTheme(const QColor& foreground,
+                             const QColor& background,
+                             const QColor& border,
+                             const QColor& font,
+                             const QColor& selectedBackground);
+
 signals:
   void geometryChanged();
 
@@ -37,8 +52,22 @@ protected:
   void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) override;
 
 private:
+  QString formattedPrice() const;
+  static QPair<QString, QString> currencyAffixes();
+
   QString m_title;
+  QString m_number;
   QRectF m_rect;          // local rect
   int m_id;
+  bool m_hasDecomposition = false;
   QSet<ArrowItem*> m_arrows;
+  std::optional<qreal> m_price;
+
+  static QString s_currencySymbol;
+  static QString s_currencyPlacement;
+  static QColor s_foregroundColor;
+  static QColor s_backgroundColor;
+  static QColor s_borderColor;
+  static QColor s_fontColor;
+  static QColor s_selectedBackgroundColor;
 };

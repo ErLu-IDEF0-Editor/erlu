@@ -1,10 +1,13 @@
 #pragma once
 #include <QGraphicsScene>
 #include <QPointer>
+#include <optional>
+#include <QVariantMap>
 
 #include "BlockItem.h"
 class ArrowItem;
 class JunctionItem;
+class HeaderFooterItem;
 
 class DiagramScene final : public QGraphicsScene {
   Q_OBJECT
@@ -14,9 +17,21 @@ public:
   BlockItem* createBlockAt(const QPointF& scenePos);
   BlockItem* createBlockWithId(const QPointF& scenePos, int id, const QString& title);
   void requestSnapshot();
+  void applyMeta(const QVariantMap& meta);
+  void updateMeta(const QVariantMap& patch);
+  QVariantMap meta() const { return m_meta; }
+  QRectF contentRect() const { return m_contentRect; }
+  QString currentNodeLabel() const;
+  QString currentDiagramTitle() const;
   bool goDownIntoSelected();
   bool goDownIntoBlock(BlockItem* b);
   bool goUp();
+  void propagateLabelFrom(ArrowItem* root);
+  QVariantMap exportToVariant();
+  bool importFromVariant(const QVariantMap& map);
+signals:
+  void changed();
+  void metaChanged(const QVariantMap& meta);
 
 protected:
   void mousePressEvent(QGraphicsSceneMouseEvent* e) override;
@@ -30,10 +45,10 @@ private:
       enum class Kind { None, Block, Junction, Scene } kind = Kind::None;
       int id = -1;
       BlockItem::Port port = BlockItem::Port::Input;
-      QPointF localPos;
-      QPointF scenePos;
+      std::optional<QPointF> localPos;
+      std::optional<QPointF> scenePos;
     };
-    struct Block { int id; QString title; QPointF pos; };
+    struct Block { int id; QString title; QPointF pos; bool hasDecomp = false; QString number; std::optional<qreal> price; };
     struct Junction { int id; QPointF pos; };
     struct Arrow {
       Endpoint from;
@@ -43,13 +58,19 @@ private:
       qreal bottom = 0.0;
       QString label;
       QPointF labelOffset;
+      bool labelHidden = false;
+      bool labelInherited = false;
+      bool isInterface = false;
+      bool isInterfaceStub = false;
+      bool labelLocked = false;
+      Endpoint interfaceEdge;
     };
     QVector<Block> blocks;
     QVector<Junction> junctions;
     QVector<Arrow> arrows;
   };
 
-  struct HierNode { int blockId; Snapshot snapshot; };
+  struct HierNode { int blockId; Snapshot snapshot; QString prefix; };
 
   ArrowItem* m_dragArrow = nullptr;
   QPointer<BlockItem> m_dragFromBlock;
@@ -57,15 +78,20 @@ private:
   BlockItem::Port m_dragFromPort = BlockItem::Port::Output;
   int m_nextBlockId = 1;
   int m_nextJunctionId = 1;
+  QString m_currentPrefix = QStringLiteral("A");
   bool m_snapshotScheduled = false;
   bool m_restoringSnapshot = false;
   bool m_itemDragActive = false;
   QHash<QGraphicsItem*, QPointF> m_pressPositions;
   int m_currentBlockId = -1;
   QVector<HierNode> m_hierarchy;
-  QHash<int, Snapshot> m_children; // blockId -> saved child diagram
+  QHash<QString, Snapshot> m_children; // hierarchical key ("1/2/3") -> saved child diagram
+  ArrowItem* m_dragInterfaceStub = nullptr;
+  QVariantMap m_meta;
+  HeaderFooterItem* m_headerFooter = nullptr;
+  QRectF m_contentRect;
 
-  bool tryStartArrowDrag(const QPointF& scenePos);
+  bool tryStartArrowDrag(const QPointF& scenePos, Qt::KeyboardModifiers mods);
   bool tryFinishArrowDrag(const QPointF& scenePos);
   bool tryBranchAtArrow(const QPointF& scenePos);
   void cancelCurrentDrag();
@@ -75,14 +101,22 @@ private:
   int m_historyIndex = -1;
 
   Snapshot captureSnapshot() const;
-  void restoreSnapshot(const Snapshot& snap);
+  void restoreSnapshot(const Snapshot& snap, bool resetHistoryState = true);
   void pushSnapshot();
   void scheduleSnapshot();
   void undo();
   void maybeSnapshotMovedItems();
   void resetHistory(const Snapshot& base);
   void ensureFrame();
+  void ensureHeaderFooter();
+  bool childHasContent(int blockId) const;
+  QString currentPathKey() const;
+  QString childKeyFor(int blockId) const;
+  QString assignNumber(BlockItem* b);
 
   enum class Edge { None, Left, Right, Top, Bottom };
   Edge hitTestEdge(const QPointF& scenePos, QPointF* outScenePoint = nullptr) const;
+
+  friend QJsonObject endpointToJson(const Snapshot::Endpoint& ep);
+  friend Snapshot::Endpoint endpointFromJson(const QJsonObject& o);
 };

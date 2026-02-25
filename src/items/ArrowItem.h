@@ -1,8 +1,10 @@
 #pragma once
 #include <QGraphicsPathItem>
 #include <QPointer>
+#include <QSet>
 #include <optional>
 #include <QString>
+#include <QColor>
 
 #include "BlockItem.h"
 class JunctionItem;
@@ -36,10 +38,26 @@ public:
   QPointF labelOffset() const { return m_labelOffset; }
   void setOffsets(qreal bend, qreal top, qreal bottom);
   void setLabelOffset(const QPointF& off);
+  void setLabelHidden(bool hidden);
+  bool isLabelHidden() const { return m_labelHidden; }
+  void setLabelInherited(bool inherited);
+  bool isLabelInherited() const { return m_labelInherited; }
+  void setLabelSource(ArrowItem* src);
+  ArrowItem* labelSource() const { return m_labelSource; }
+  ArrowItem* labelSourceRoot() const;
   qreal bendOffset() const { return m_bendOffset; }
   qreal topOffset() const { return m_topOffset; }
   qreal bottomOffset() const { return m_bottomOffset; }
   int type() const override { return Type; }
+  bool isInterface() const { return m_isInterface; }
+  bool isInterfaceStub() const { return m_isInterface && m_interfaceStubOnly; }
+  bool isLabelLocked() const { return m_labelLocked; }
+  std::optional<Endpoint> interfaceEdge() const { return m_interfaceEdge; }
+  void setInterfaceStub(const Endpoint& edge, const QString& label);
+  void setInterfaceIsStub(bool stub);
+  void resetInterfaceStub();
+  void setLabelLocked(bool locked);
+  static void setVisualTheme(const QColor& lineColor, const QColor& textColor);
 
   void updatePath();
   std::optional<QPointF> hitTest(const QPointF& scenePos, qreal radius) const;
@@ -56,10 +74,19 @@ private:
   qreal m_bottomOffset = 0.0;
   QString m_label;
   QGraphicsSimpleTextItem* m_labelItem = nullptr;
+  bool m_labelHidden = false;
+  bool m_labelInherited = false;
   QPointF m_labelOffset; // in scene-space relative to anchor point
   bool m_labelDragging = false;
   QPointF m_labelDragLastScene;
   QVector<QPointF> m_lastPolyline;
+  bool m_isInterface = false;
+  bool m_interfaceStubOnly = false;
+  bool m_labelLocked = false;
+  std::optional<Endpoint> m_interfaceEdge;
+  ArrowItem* m_labelSource = nullptr;
+  static QColor s_lineColor;
+  static QColor s_textColor;
 
   DragPart m_dragPart = DragPart::None;
   QPointF m_lastDragScenePos;
