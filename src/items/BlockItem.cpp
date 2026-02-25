@@ -32,6 +32,9 @@ BlockItem::BlockItem(QString title, QGraphicsItem* parent, int id)
     m_rect(0, 0, 200, 100),
     m_id(id)
 {
+  if (m_title.isEmpty()) {
+    m_title = tr("Function");
+  }
   setFlags(ItemIsMovable | ItemIsSelectable | ItemSendsGeometryChanges);
 }
 
@@ -45,11 +48,15 @@ void BlockItem::paint(QPainter* p, const QStyleOptionGraphicsItem*, QWidget*) {
 
   // фон
   p->setPen(Qt::NoPen);
-  p->setBrush(isSelected() ? s_selectedBackgroundColor : s_backgroundColor);
+  const QColor borderColor = m_customColor.value_or(s_borderColor);
+  const QColor fontColor = m_customColor.value_or(s_fontColor);
+  const QColor foregroundColor = m_customColor.value_or(s_foregroundColor);
+  const QColor selectedBg = m_customColor ? m_customColor->lighter(160) : s_selectedBackgroundColor;
+  p->setBrush(isSelected() ? selectedBg : s_backgroundColor);
   p->drawRoundedRect(m_rect, 6, 6);
 
   // рамка
-  QPen pen(s_borderColor);
+  QPen pen(borderColor);
   pen.setWidthF(1.5);
   p->setPen(pen);
   p->setBrush(Qt::NoBrush);
@@ -65,22 +72,22 @@ void BlockItem::paint(QPainter* p, const QStyleOptionGraphicsItem*, QWidget*) {
     fold.closeSubpath();
     p->setBrush(s_backgroundColor.darker(108));
     p->drawPath(fold);
-    p->setPen(QPen(s_borderColor.lighter(130), 1.0));
+    p->setPen(QPen(borderColor.lighter(130), 1.0));
     p->drawLine(m_rect.topLeft() + QPointF(ear, 0), m_rect.topLeft() + QPointF(0, ear));
   }
 
   // заголовок
-  p->setPen(s_fontColor);
+  p->setPen(fontColor);
   p->drawText(m_rect.adjusted(10, 8, -10, -8), Qt::AlignLeft | Qt::AlignTop, m_title);
   if (!m_number.isEmpty()) {
     QFont f = p->font();
     f.setBold(true);
     p->setFont(f);
-    p->setPen(s_foregroundColor);
+    p->setPen(foregroundColor);
     p->drawText(m_rect.adjusted(8, 4, -8, -8), Qt::AlignRight | Qt::AlignBottom, m_number);
   }
   if (m_price.has_value()) {
-    p->setPen(s_foregroundColor);
+    p->setPen(foregroundColor);
     p->drawText(m_rect.adjusted(8, 4, -8, -8), Qt::AlignLeft | Qt::AlignBottom, formattedPrice());
   }
 }
@@ -89,17 +96,31 @@ void BlockItem::setTitle(const QString& t) {
   if (t == m_title) return;
   m_title = t;
   update();
+  emit titleChanged(m_title);
 }
 
 void BlockItem::setNumber(const QString& n) {
   if (n == m_number) return;
   m_number = n;
   update();
+  emit numberChanged(m_number);
 }
 
 void BlockItem::setPrice(std::optional<qreal> price) {
   if (m_price == price) return;
   m_price = price;
+  update();
+}
+
+void BlockItem::setCustomColor(const QColor& color) {
+  if (!color.isValid()) return;
+  m_customColor = color;
+  update();
+}
+
+void BlockItem::clearCustomColor() {
+  if (!m_customColor) return;
+  m_customColor.reset();
   update();
 }
 

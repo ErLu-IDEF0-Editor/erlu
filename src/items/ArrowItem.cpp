@@ -12,6 +12,7 @@
 #include <QLineEdit>
 #include <QDebug>
 #include <QObject>
+#include <QCoreApplication>
 #include "DiagramScene.h"
 #include <algorithm>
 #include <QSet>
@@ -35,6 +36,8 @@ QColor ArrowItem::s_textColor = QColor(10, 10, 10);
 ArrowItem::ArrowItem(QGraphicsItem* parent)
   : QGraphicsPathItem(parent)
 {
+  static int s_nextId = 1;
+  m_internalId = s_nextId++;
   QPen pen(s_lineColor);
   pen.setWidthF(1.4);
   pen.setCapStyle(Qt::RoundCap);
@@ -99,6 +102,18 @@ void ArrowItem::setLabelInherited(bool inherited) {
 
 void ArrowItem::setLabelSource(ArrowItem* src) {
   m_labelSource = src;
+}
+
+void ArrowItem::setCustomColor(const QColor& color) {
+  if (!color.isValid()) return;
+  m_customColor = color;
+  updatePath();
+}
+
+void ArrowItem::clearCustomColor() {
+  if (!m_customColor) return;
+  m_customColor.reset();
+  updatePath();
 }
 
 ArrowItem* ArrowItem::labelSourceRoot() const {
@@ -674,10 +689,13 @@ void ArrowItem::updateLabelItem(const QVector<QPointF>& pts) {
 // Обновляем маршрут ортогонально, добавляя/схлопывая сегменты при необходимости.
 void ArrowItem::updatePath() {
   QPen themedPen = pen();
-  themedPen.setColor(s_lineColor);
+  themedPen.setColor(m_customColor.value_or(s_lineColor));
+  if (m_isCallMechanism) {
+    themedPen.setStyle(Qt::DashLine);
+  }
   setPen(themedPen);
   if (m_labelItem) {
-    m_labelItem->setBrush(s_textColor);
+    m_labelItem->setBrush(m_customColor.value_or(s_textColor));
   }
 
   const QRectF oldSceneRect = mapRectToScene(boundingRect());
@@ -912,7 +930,13 @@ void ArrowItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* e) {
 void ArrowItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) {
   if (e->button() == Qt::LeftButton && !m_labelLocked) {
     bool ok = false;
-    const QString text = QInputDialog::getText(nullptr, QObject::tr("Arrow label"), QObject::tr("Label:"), QLineEdit::Normal, m_label, &ok);
+    const QString text = QInputDialog::getText(
+      nullptr,
+      QCoreApplication::translate("ArrowItem", "Arrow label"),
+      QCoreApplication::translate("ArrowItem", "Label:"),
+      QLineEdit::Normal,
+      m_label,
+      &ok);
     if (ok) {
       setLabel(text);
       setLabelHidden(false);

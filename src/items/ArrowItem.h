@@ -49,6 +49,7 @@ public:
   qreal topOffset() const { return m_topOffset; }
   qreal bottomOffset() const { return m_bottomOffset; }
   int type() const override { return Type; }
+  int internalId() const { return m_internalId; }
   bool isInterface() const { return m_isInterface; }
   bool isInterfaceStub() const { return m_isInterface && m_interfaceStubOnly; }
   bool isLabelLocked() const { return m_labelLocked; }
@@ -58,6 +59,13 @@ public:
   void resetInterfaceStub();
   void setLabelLocked(bool locked);
   static void setVisualTheme(const QColor& lineColor, const QColor& textColor);
+  void setCustomColor(const QColor& color);
+  void clearCustomColor();
+  std::optional<QColor> customColor() const { return m_customColor; }
+  void setCallMechanism(bool v) { m_isCallMechanism = v; }
+  bool isCallMechanism() const { return m_isCallMechanism; }
+  void setCallRefId(int id) { m_callRefId = id; }
+  int callRefId() const { return m_callRefId; }
 
   void updatePath();
   std::optional<QPointF> hitTest(const QPointF& scenePos, qreal radius) const;
@@ -87,6 +95,10 @@ private:
   ArrowItem* m_labelSource = nullptr;
   static QColor s_lineColor;
   static QColor s_textColor;
+  std::optional<QColor> m_customColor;
+  int m_internalId = -1;
+  bool m_isCallMechanism = false;
+  int m_callRefId = -1;
 
   DragPart m_dragPart = DragPart::None;
   QPointF m_lastDragScenePos;

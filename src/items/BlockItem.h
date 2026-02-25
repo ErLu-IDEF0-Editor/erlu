@@ -12,7 +12,7 @@ public:
   enum class Port { Input, Control, Output, Mechanism };
   enum { Type = UserType + 1 };
 
-  explicit BlockItem(QString title = "Function", QGraphicsItem* parent = nullptr, int id = -1);
+  explicit BlockItem(QString title = QString(), QGraphicsItem* parent = nullptr, int id = -1);
 
   QRectF boundingRect() const override;
   void paint(QPainter* p, const QStyleOptionGraphicsItem*, QWidget*) override;
@@ -43,9 +43,14 @@ public:
                              const QColor& border,
                              const QColor& font,
                              const QColor& selectedBackground);
+  void setCustomColor(const QColor& color);
+  void clearCustomColor();
+  std::optional<QColor> customColor() const { return m_customColor; }
 
 signals:
   void geometryChanged();
+  void titleChanged(const QString& title);
+  void numberChanged(const QString& number);
 
 protected:
   QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
@@ -62,6 +67,7 @@ private:
   bool m_hasDecomposition = false;
   QSet<ArrowItem*> m_arrows;
   std::optional<qreal> m_price;
+  std::optional<QColor> m_customColor;
 
   static QString s_currencySymbol;
   static QString s_currencyPlacement;

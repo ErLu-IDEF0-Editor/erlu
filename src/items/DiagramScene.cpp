@@ -37,9 +37,10 @@ DiagramScene::DiagramScene(QObject* parent)
 }
 
 BlockItem* DiagramScene::createBlockAt(const QPointF& scenePos) {
-  auto* b = new BlockItem("Function", nullptr, m_nextBlockId++);
+  auto* b = new BlockItem(QString(), nullptr, m_nextBlockId++);
   addItem(b);
   b->setNumber(assignNumber(b));
+  connectBlockSignals(b);
   const QRectF r = m_contentRect.isNull() ? sceneRect() : m_contentRect;
   const QPointF desired = scenePos - QPointF(100, 50); // центрируем
   const QRectF br = b->boundingRect().translated(desired);
@@ -59,6 +60,7 @@ BlockItem* DiagramScene::createBlockWithId(const QPointF& scenePos, int id, cons
   addItem(b);
   b->setPos(scenePos);
   if (b->number().isEmpty()) b->setNumber(assignNumber(b));
+  connectBlockSignals(b);
   return b;
 }
 
@@ -155,9 +157,9 @@ void DiagramScene::updateMeta(const QVariantMap& patch) {
 }
 
 QString DiagramScene::currentNodeLabel() const {
-  if (m_currentBlockId < 0) return QStringLiteral("TOP");
+  if (m_currentBlockId < 0) return tr("TOP");
   if (!m_currentPrefix.isEmpty()) return m_currentPrefix;
-  return QStringLiteral("A0");
+  return tr("A0");
 }
 
 QString DiagramScene::currentDiagramTitle() const {
@@ -594,6 +596,9 @@ DiagramScene::Snapshot DiagramScene::captureSnapshot() const {
       blk.hasDecomp = hasDecomp;
       blk.number = b->number();
       blk.price = b->price();
+      if (auto col = b->customColor()) {
+        blk.color = col->name();
+      }
       s.blocks.push_back(blk);
     }
   }
@@ -621,8 +626,13 @@ DiagramScene::Snapshot DiagramScene::captureSnapshot() const {
       ar.isInterface = a->isInterface();
       ar.isInterfaceStub = a->isInterfaceStub();
       ar.labelLocked = a->isLabelLocked();
+      ar.callMechanism = a->isCallMechanism();
+      ar.callRefId = a->callRefId();
       if (a->interfaceEdge()) {
         ar.interfaceEdge = encodeEp(*a->interfaceEdge());
+      }
+      if (auto col = a->customColor()) {
+        ar.color = col->name();
       }
       s.arrows.push_back(std::move(ar));
     }
@@ -654,6 +664,10 @@ void DiagramScene::restoreSnapshot(const Snapshot& snap, bool resetHistoryState)
     }
     if (b.price.has_value()) {
       blk->setPrice(b.price);
+    }
+    if (b.color.has_value()) {
+      const QColor col(*b.color);
+      if (col.isValid()) blk->setCustomColor(col);
     }
     blockMap.insert(b.id, blk);
     m_nextBlockId = std::max(m_nextBlockId, b.id + 1);
@@ -710,10 +724,17 @@ for (const auto& j : snap.junctions) {
     ar->setLabelHidden(a.labelHidden);
     ar->setLabelInherited(a.labelInherited);
     ar->setLabelLocked(a.labelLocked);
+    ar->setCallMechanism(a.callMechanism);
+    ar->setCallRefId(a.callRefId);
+    if (a.color.has_value()) {
+      const QColor col(*a.color);
+      if (col.isValid()) ar->setCustomColor(col);
+    }
     ar->finalize();
   }
 
   m_restoringSnapshot = false;
+  updateCallMechanismLabels();
   if (resetHistoryState) {
     resetHistory(captureSnapshot());
   }
@@ -742,7 +763,57 @@ void DiagramScene::scheduleSnapshot() {
   QTimer::singleShot(0, this, [this]{
     m_snapshotScheduled = false;
     pushSnapshot();
+    updateCallMechanismLabels();
   });
+}
+
+void DiagramScene::connectBlockSignals(BlockItem* b) {
+  if (!b) return;
+  connect(b, &BlockItem::titleChanged, this, [this]{ updateCallMechanismLabels(); });
+  connect(b, &BlockItem::numberChanged, this, [this]{ updateCallMechanismLabels(); });
+}
+
+void DiagramScene::updateCallMechanismLabels() {
+  QHash<int, BlockItem*> blockById;
+  for (QGraphicsItem* it : items()) {
+    if (auto* b = qgraphicsitem_cast<BlockItem*>(it)) {
+      blockById.insert(b->id(), b);
+    }
+  }
+  for (QGraphicsItem* it : items()) {
+    auto* a = qgraphicsitem_cast<ArrowItem*>(it);
+    if (!a || !a->isCallMechanism()) continue;
+    BlockItem* ref = blockById.value(a->callRefId(), nullptr);
+    if (!ref) continue;
+    const QString num = ref->number();
+    const QString title = ref->title();
+    const QString label = num.isEmpty() ? title : QStringLiteral("%1 %2").arg(num, title);
+    a->setLabel(label);
+    a->setLabelHidden(false);
+  }
+}
+
+void DiagramScene::purgeBrokenCallMechanisms() {
+  QSet<BlockItem*> blocks;
+  for (QGraphicsItem* it : items()) {
+    if (auto* b = qgraphicsitem_cast<BlockItem*>(it)) blocks.insert(b);
+  }
+  QVector<ArrowItem*> toRemove;
+  for (QGraphicsItem* it : items()) {
+    if (auto* a = qgraphicsitem_cast<ArrowItem*>(it)) {
+      if (!a->isCallMechanism()) continue;
+      auto from = a->from();
+      auto to = a->to();
+      bool ok = true;
+      if (from.block && !blocks.contains(from.block)) ok = false;
+      if (to.block && !blocks.contains(to.block)) ok = false;
+      if (!ok) toRemove.push_back(a);
+    }
+  }
+  for (ArrowItem* a : toRemove) {
+    removeItem(a);
+    delete a;
+  }
 }
 
 void DiagramScene::undo() {
@@ -1022,6 +1093,7 @@ void DiagramScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* e) {
     maybeSnapshotMovedItems();
     m_itemDragActive = false;
   }
+  purgeBrokenCallMechanisms();
   QGraphicsScene::mouseReleaseEvent(e);
 }
 
@@ -1054,6 +1126,47 @@ void DiagramScene::keyPressEvent(QKeyEvent* e) {
     }
   }
   QGraphicsScene::keyPressEvent(e);
+}
+
+bool DiagramScene::hasCallMechanism(const BlockItem* target) const {
+  if (!target) return false;
+  const auto all = items();
+  for (QGraphicsItem* it : all) {
+    if (auto* a = qgraphicsitem_cast<ArrowItem*>(it)) {
+      if (!a->isCallMechanism()) continue;
+      const auto from = a->from();
+      if (from.block && from.block == target) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool DiagramScene::startCallMechanism(BlockItem* origin, BlockItem* refBlock, const QString& label) {
+  if (!origin || !refBlock) return false;
+  if (origin == refBlock) return false;
+  if (hasCallMechanism(origin)) return false;
+  cancelCurrentDrag();
+  auto* a = new ArrowItem();
+  addItem(a);
+  ArrowItem::Endpoint from;
+  from.scenePos = origin->portScenePos(BlockItem::Port::Mechanism) + QPointF(0, 40);
+  from.port = BlockItem::Port::Mechanism;
+  ArrowItem::Endpoint to;
+  to.block = origin;
+  to.port = BlockItem::Port::Mechanism;
+  a->setFrom(from);
+  a->setTo(to);
+  a->setCallMechanism(true);
+  a->setCallRefId(refBlock->id());
+  a->setLabel(label);
+  a->setLabelHidden(false);
+  a->setLabelLocked(true);
+  a->setLabelInherited(false);
+  a->finalize();
+  pushSnapshot();
+  return true;
 }
 
 void DiagramScene::cancelCurrentDrag() {
@@ -1119,7 +1232,10 @@ void DiagramScene::deleteSelection() {
     delete it;
   }
 
-  if (!toDelete.isEmpty()) pushSnapshot();
+  if (!toDelete.isEmpty()) {
+    purgeBrokenCallMechanisms();
+    pushSnapshot();
+  }
 }
 
 void DiagramScene::requestSnapshot() {
@@ -1278,6 +1394,7 @@ QVariantMap DiagramScene::exportToVariant() {
       o["hasDecomp"] = b.hasDecomp;
       o["number"] = b.number;
       if (b.price.has_value()) o["price"] = *b.price;
+      if (b.color.has_value()) o["color"] = *b.color;
       blocks.append(o);
     }
     root["blocks"] = blocks;
@@ -1307,6 +1424,9 @@ QVariantMap DiagramScene::exportToVariant() {
       o["isInterfaceStub"] = a.isInterfaceStub;
       o["labelLocked"] = a.labelLocked;
       o["interfaceEdge"] = endpointToJson(a.interfaceEdge);
+      o["callMechanism"] = a.callMechanism;
+      o["callRefId"] = a.callRefId;
+      if (a.color.has_value()) o["color"] = *a.color;
       arrows.append(o);
     }
     root["arrows"] = arrows;
@@ -1340,7 +1460,7 @@ bool DiagramScene::importFromVariant(const QVariantMap& map) {
     Snapshot snap;
     for (const auto& vb : root.value("blocks").toArray()) {
       const auto o = vb.toObject();
-      const auto posArr = o.value("pos").toArray();
+    const auto posArr = o.value("pos").toArray();
       if (posArr.size() != 2) continue;
       DiagramScene::Snapshot::Block blk;
       blk.id = o.value("id").toInt();
@@ -1351,6 +1471,8 @@ bool DiagramScene::importFromVariant(const QVariantMap& map) {
       if (o.contains("price") && !o.value("price").isNull()) {
         blk.price = o.value("price").toDouble();
       }
+      const QString blkColor = o.value("color").toString();
+      if (!blkColor.isEmpty()) blk.color = blkColor;
       snap.blocks.push_back(blk);
     }
     for (const auto& vj : root.value("junctions").toArray()) {
@@ -1376,6 +1498,10 @@ bool DiagramScene::importFromVariant(const QVariantMap& map) {
       ar.isInterfaceStub = o.value("isInterfaceStub").toBool(false);
       ar.labelLocked = o.value("labelLocked").toBool(false);
       ar.interfaceEdge = endpointFromJson(o.value("interfaceEdge").toObject());
+      ar.callMechanism = o.value("callMechanism").toBool(false);
+      ar.callRefId = o.value("callRefId").toInt(-1);
+      const QString arrowColor = o.value("color").toString();
+      if (!arrowColor.isEmpty()) ar.color = arrowColor;
       snap.arrows.push_back(ar);
     }
     return snap;

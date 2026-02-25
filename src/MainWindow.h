@@ -8,12 +8,14 @@ class QGraphicsView;
 class DiagramScene;
 class QDialog;
 class QAction;
+class PluginManager;
 
 class MainWindow final : public QMainWindow {
   Q_OBJECT
 public:
   explicit MainWindow(const QString& startupPath = QString(), QWidget* parent = nullptr);
   bool openDiagramPath(const QString& path);
+  DiagramScene* scene() const { return m_scene; }
 
 protected:
   bool eventFilter(QObject* obj, QEvent* event) override;
@@ -26,12 +28,9 @@ private:
   QString m_currentFile;
   bool m_dirty = false;
   bool m_pinchHandled = false;
-  QAction* m_actColorfulMode = nullptr;
   QAction* m_actFollowSystemTheme = nullptr;
   QAction* m_actDarkMode = nullptr;
-  QAction* m_actArrowColor = nullptr;
-  QAction* m_actBorderColor = nullptr;
-  QAction* m_actFontColor = nullptr;
+  PluginManager* m_pluginManager = nullptr;
 
   void setupUi();
   void setupActions();

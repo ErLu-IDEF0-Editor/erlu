@@ -32,7 +32,6 @@
 #include <QCloseEvent>
 #include <QInputDialog>
 #include <QShortcut>
-#include <QColorDialog>
 #include <QApplication>
 #include <QPalette>
 #include <QStyleHints>
@@ -44,10 +43,13 @@
 #include <QPageSize>
 #include <QPageLayout>
 #include <QPainter>
+#include <QCoreApplication>
+#include <QtGlobal>
 #include "items/BlockItem.h"
+#include "plugins/PluginManager.h"
 
-static const char* kDiagramFileFilter = "IDEF0 Diagram (*.idef0);;JSON Diagram (*.json)";
-static const char* kPdfFileFilter = "PDF (*.pdf)";
+static const char* kDiagramFileFilter = QT_TR_NOOP("IDEF0 Diagram (*.idef0);;JSON Diagram (*.json)");
+static const char* kPdfFileFilter = QT_TR_NOOP("PDF (*.pdf)");
 
 static QPageSize::PageSizeId pageSizeFromMeta(const QVariantMap& meta) {
   const QString size = meta.value("pageSize", "A4").toString();
@@ -59,7 +61,8 @@ static QPageSize::PageSizeId pageSizeFromMeta(const QVariantMap& meta) {
 
 static QPageLayout::Orientation pageOrientationFromMeta(const QVariantMap& meta) {
   const QString orient = meta.value("pageOrientation").toString();
-  if (orient == QObject::tr("Portrait") || orient == "Portrait") {
+  const QString portrait = QCoreApplication::translate("MainWindow", "Portrait");
+  if (orient == portrait || orient == "Portrait") {
     return QPageLayout::Portrait;
   }
   return QPageLayout::Landscape;
@@ -125,7 +128,9 @@ void MainWindow::setupActions() {
 
   auto* editMenu = menuBar()->addMenu(tr("&Edit"));
   auto* actSwapNums = new QAction(tr("Swap numbers…"), this);
+  auto* actCallMech = new QAction(tr("Call Mechanism add"), this);
   editMenu->addAction(actSwapNums);
+  editMenu->addAction(actCallMech);
 
   auto* viewMenu = menuBar()->addMenu(tr("&View"));
   auto* actFit = new QAction(tr("Fit"), this);
@@ -134,6 +139,7 @@ void MainWindow::setupActions() {
     m_view->fitInView(m_scene->itemsBoundingRect().adjusted(-50,-50,50,50), Qt::KeepAspectRatio);
   });
   viewMenu->addAction(actFit);
+  auto* pluginsMenu = menuBar()->addMenu(tr("&Plugins"));
 
   auto* actZoomIn = new QAction(tr("Scale +"), this);
   actZoomIn->setShortcut(QKeySequence::ZoomIn);
@@ -149,12 +155,6 @@ void MainWindow::setupActions() {
   });
   viewMenu->addAction(actZoomOut);
 
-  m_actColorfulMode = new QAction(tr("Colorful mode"), this);
-  m_actColorfulMode->setCheckable(true);
-  m_actColorfulMode->setChecked(m_welcomeState.value("colorfulMode", false).toBool());
-  viewMenu->addSeparator();
-  viewMenu->addAction(m_actColorfulMode);
-
   m_actDarkMode = new QAction(tr("Dark mode"), this);
   m_actDarkMode->setCheckable(true);
   m_actDarkMode->setChecked(m_welcomeState.value("darkMode", false).toBool());
@@ -165,66 +165,21 @@ void MainWindow::setupActions() {
   m_actFollowSystemTheme->setChecked(m_welcomeState.value("followSystemTheme", false).toBool());
   viewMenu->addAction(m_actFollowSystemTheme);
 
-  m_actArrowColor = new QAction(tr("Arrow color..."), this);
-  m_actBorderColor = new QAction(tr("Block border color..."), this);
-  m_actFontColor = new QAction(tr("Block font color..."), this);
-  viewMenu->addAction(m_actArrowColor);
-  viewMenu->addAction(m_actBorderColor);
-  viewMenu->addAction(m_actFontColor);
-
-  auto ensureDefaultColor = [this](const char* key, const QColor& fallback) {
-    QColor c(m_welcomeState.value(key).toString());
-    if (!c.isValid()) m_welcomeState[key] = fallback.name();
-  };
-  ensureDefaultColor("arrowColor", QColor("#2b6ee6"));
-  ensureDefaultColor("blockBorderColor", QColor("#0f766e"));
-  ensureDefaultColor("blockFontColor", QColor("#991b1b"));
-
   auto applyModes = [this](bool mark) {
-    const bool colorful = m_actColorfulMode->isChecked();
     const bool followSystem = m_actFollowSystemTheme->isChecked();
     const bool dark = m_actDarkMode->isChecked();
-    m_welcomeState["colorfulMode"] = colorful;
     m_welcomeState["followSystemTheme"] = followSystem;
     m_welcomeState["darkMode"] = dark;
     m_welcomeState["resolvedDarkMode"] = effectiveDarkMode();
-
-    m_actArrowColor->setEnabled(colorful);
-    m_actBorderColor->setEnabled(colorful);
-    m_actFontColor->setEnabled(colorful);
     m_actDarkMode->setEnabled(!followSystem);
-
     applyAppPalette(m_welcomeState.value("resolvedDarkMode").toBool());
     m_scene->applyMeta(m_welcomeState);
     if (mark) markDirty(true);
   };
-
-  connect(m_actColorfulMode, &QAction::toggled, this, [applyModes]{ applyModes(true); });
   connect(m_actDarkMode, &QAction::toggled, this, [applyModes]{ applyModes(true); });
   connect(m_actFollowSystemTheme, &QAction::toggled, this, [applyModes]{ applyModes(true); });
   connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [applyModes](Qt::ColorScheme){
     applyModes(false);
-  });
-  connect(m_actArrowColor, &QAction::triggered, this, [this, applyModes]{
-    const QColor cur(m_welcomeState.value("arrowColor").toString());
-    const QColor chosen = QColorDialog::getColor(cur.isValid() ? cur : QColor("#2b6ee6"), this, tr("Arrow color"));
-    if (!chosen.isValid()) return;
-    m_welcomeState["arrowColor"] = chosen.name();
-    applyModes(true);
-  });
-  connect(m_actBorderColor, &QAction::triggered, this, [this, applyModes]{
-    const QColor cur(m_welcomeState.value("blockBorderColor").toString());
-    const QColor chosen = QColorDialog::getColor(cur.isValid() ? cur : QColor("#0f766e"), this, tr("Block border color"));
-    if (!chosen.isValid()) return;
-    m_welcomeState["blockBorderColor"] = chosen.name();
-    applyModes(true);
-  });
-  connect(m_actFontColor, &QAction::triggered, this, [this, applyModes]{
-    const QColor cur(m_welcomeState.value("blockFontColor").toString());
-    const QColor chosen = QColorDialog::getColor(cur.isValid() ? cur : QColor("#991b1b"), this, tr("Block font color"));
-    if (!chosen.isValid()) return;
-    m_welcomeState["blockFontColor"] = chosen.name();
-    applyModes(true);
   });
   applyModes(false);
 
@@ -327,6 +282,59 @@ void MainWindow::setupActions() {
     if (dlg.exec() != QDialog::Accepted) return;
     exportPdf(scope->currentIndex() == 1, pageNumbers->isChecked());
   });
+
+  connect(actCallMech, &QAction::triggered, this, [this]{
+    if (!m_scene) return;
+    const auto sel = m_scene->selectedItems();
+    if (sel.size() != 1) {
+      QMessageBox::information(this, tr("Call Mechanism"), tr("Select exactly one block to add a call mechanism."));
+      return;
+    }
+    auto* target = qgraphicsitem_cast<BlockItem*>(sel.first());
+    if (!target) {
+      QMessageBox::information(this, tr("Call Mechanism"), tr("Select a block to add a call mechanism."));
+      return;
+    }
+    if (m_scene->hasCallMechanism(target)) {
+      QMessageBox::information(this, tr("Call Mechanism"), tr("Call mechanism already exists for this block."));
+      return;
+    }
+    struct Option { QString display; BlockItem* block = nullptr; };
+    QVector<Option> options;
+    for (QGraphicsItem* it : m_scene->items()) {
+      auto* b = qgraphicsitem_cast<BlockItem*>(it);
+      if (!b) continue;
+      const QString n = b->number();
+      if (n.isEmpty() || n.compare("A0", Qt::CaseInsensitive) == 0) continue;
+      if (b == target) continue;
+      Option opt{QStringLiteral("%1 — %2").arg(n, b->title()), b};
+      options.push_back(opt);
+    }
+    std::sort(options.begin(), options.end(), [](const Option& a, const Option& b){ return a.display.localeAwareCompare(b.display) < 0; });
+    if (options.isEmpty()) {
+      QMessageBox::information(this, tr("Call Mechanism"), tr("No eligible target blocks found."));
+      return;
+    }
+    QStringList displayList;
+    for (const auto& opt : options) displayList << opt.display;
+    bool ok = false;
+    const QString choice = QInputDialog::getItem(this, tr("Call Mechanism"), tr("Choose target block:"), displayList, 0, false, &ok);
+    if (!ok || choice.isEmpty()) return;
+    BlockItem* refBlock = nullptr;
+    for (const auto& opt : options) {
+      if (opt.display == choice) { refBlock = opt.block; break; }
+    }
+    if (!refBlock) return;
+    const QString label = QStringLiteral("%1 %2").arg(refBlock->number(), refBlock->title());
+    if (!m_scene->startCallMechanism(target, refBlock, label)) {
+      QMessageBox::information(this, tr("Call Mechanism"), tr("Call mechanism already exists for this block or selection is invalid."));
+      return;
+    }
+    statusBar()->showMessage(tr("Click bottom frame to place call mechanism arrow. Esc to cancel."), 5000);
+  });
+
+  m_pluginManager = new PluginManager(this, pluginsMenu, this);
+  m_pluginManager->loadPlugins();
 }
 
 static QString currencySymbolForLocale(const QLocale& loc) {
@@ -358,15 +366,15 @@ bool MainWindow::showWelcome() {
   // General tab
   auto* general = new QWidget(dlg);
   auto* genForm = new QFormLayout(general);
-  auto* author = new QLineEdit(general);
-  author->setPlaceholderText(tr("John Doe"));
-  author->setText(m_welcomeState.value("author").toString());
   auto* title = new QLineEdit(general);
   title->setPlaceholderText(tr("Main process"));
   title->setText(m_welcomeState.value("title").toString());
   auto* organization = new QLineEdit(general);
   organization->setPlaceholderText(tr("Example.Org Inc."));
   organization->setText(m_welcomeState.value("organization").toString());
+  auto* author = new QLineEdit(general);
+  author->setPlaceholderText(tr("John Doe"));
+  author->setText(m_welcomeState.value("author").toString());
   auto* initials = new QLineEdit(general);
   initials->setPlaceholderText(tr("JD"));
   initials->setText(m_welcomeState.value("initials").toString());
@@ -378,6 +386,9 @@ bool MainWindow::showWelcome() {
   genForm->addRow(tr("Organization:"), organization);
   genForm->addRow(tr("Author:"), author);
   genForm->addRow(tr("Author's initials:"), initials);
+  setTabOrder(title, organization);
+  setTabOrder(organization, author);
+  setTabOrder(author, initials);
   general->setLayout(genForm);
   tabs->addTab(general, tr("General"));
 
@@ -557,20 +568,12 @@ bool MainWindow::loadDiagramFromPath(const QString& path) {
   if (root.contains("meta")) {
     m_welcomeState = root.value("meta").toMap();
   }
-  if (m_actColorfulMode && m_actDarkMode && m_actFollowSystemTheme) {
-    const QSignalBlocker b1(m_actColorfulMode);
+  if (m_actDarkMode && m_actFollowSystemTheme) {
     const QSignalBlocker b2(m_actDarkMode);
     const QSignalBlocker b3(m_actFollowSystemTheme);
-    m_actColorfulMode->setChecked(m_welcomeState.value("colorfulMode", false).toBool());
     m_actDarkMode->setChecked(m_welcomeState.value("darkMode", false).toBool());
     m_actFollowSystemTheme->setChecked(m_welcomeState.value("followSystemTheme", false).toBool());
     m_actDarkMode->setEnabled(!m_actFollowSystemTheme->isChecked());
-  }
-  if (m_actArrowColor && m_actBorderColor && m_actFontColor) {
-    const bool colorful = m_welcomeState.value("colorfulMode", false).toBool();
-    m_actArrowColor->setEnabled(colorful);
-    m_actBorderColor->setEnabled(colorful);
-    m_actFontColor->setEnabled(colorful);
   }
   m_welcomeState["resolvedDarkMode"] = effectiveDarkMode();
   applyAppPalette(m_welcomeState.value("resolvedDarkMode").toBool());

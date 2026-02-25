@@ -1,0 +1,18 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\.idef0]
+@="IDEF0Editor.Document"
+"Content Type"="application/x-idef0+json"
+
+[HKEY_CURRENT_USER\Software\Classes\IDEF0Editor.Document]
+@="IDEF0 Diagram"
+
+[HKEY_CURRENT_USER\Software\Classes\IDEF0Editor.Document\DefaultIcon]
+@="@APP_EXE@,0"
+
+[HKEY_CURRENT_USER\Software\Classes\IDEF0Editor.Document\shell]
+
+[HKEY_CURRENT_USER\Software\Classes\IDEF0Editor.Document\shell\open]
+
+[HKEY_CURRENT_USER\Software\Classes\IDEF0Editor.Document\shell\open\command]
+@="\"@APP_EXE@\" \"%1\""

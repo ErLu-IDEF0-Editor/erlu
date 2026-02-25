@@ -23,12 +23,16 @@ public:
   QRectF contentRect() const { return m_contentRect; }
   QString currentNodeLabel() const;
   QString currentDiagramTitle() const;
+  int currentBlockId() const { return m_currentBlockId; }
   bool goDownIntoSelected();
   bool goDownIntoBlock(BlockItem* b);
   bool goUp();
   void propagateLabelFrom(ArrowItem* root);
   QVariantMap exportToVariant();
   bool importFromVariant(const QVariantMap& map);
+  bool startCallMechanism(BlockItem* origin, BlockItem* refBlock, const QString& label);
+  bool hasCallMechanism(const BlockItem* origin) const;
+  void updateCallMechanismLabels();
 signals:
   void changed();
   void metaChanged(const QVariantMap& meta);
@@ -48,7 +52,7 @@ private:
       std::optional<QPointF> localPos;
       std::optional<QPointF> scenePos;
     };
-    struct Block { int id; QString title; QPointF pos; bool hasDecomp = false; QString number; std::optional<qreal> price; };
+    struct Block { int id; QString title; QPointF pos; bool hasDecomp = false; QString number; std::optional<qreal> price; std::optional<QString> color; };
     struct Junction { int id; QPointF pos; };
     struct Arrow {
       Endpoint from;
@@ -64,6 +68,9 @@ private:
       bool isInterfaceStub = false;
       bool labelLocked = false;
       Endpoint interfaceEdge;
+      std::optional<QString> color;
+      bool callMechanism = false;
+      int callRefId = -1;
     };
     QVector<Block> blocks;
     QVector<Junction> junctions;
@@ -113,6 +120,8 @@ private:
   QString currentPathKey() const;
   QString childKeyFor(int blockId) const;
   QString assignNumber(BlockItem* b);
+  void connectBlockSignals(BlockItem* b);
+  void purgeBrokenCallMechanisms();
 
   enum class Edge { None, Left, Right, Top, Bottom };
   Edge hitTestEdge(const QPointF& scenePos, QPointF* outScenePoint = nullptr) const;
