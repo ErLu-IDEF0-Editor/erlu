@@ -40,10 +40,11 @@ private:
   void newDiagram();
   bool promptStartup();
   bool loadDiagramFromPath(const QString& path);
-  bool exportPdf(bool allDiagrams, bool numberPages);
+  bool exportPdf(bool allDiagrams, bool numberPages, bool forceLightTheme);
   bool effectiveDarkMode() const;
   void applyAppPalette(bool darkMode);
   void autoInitialsFromAuthor(QLineEdit* author, QLineEdit* initials);
+  void showNodeTreeDialog();
   void markDirty(bool dirty);
   void updateWindowTitle();
 };

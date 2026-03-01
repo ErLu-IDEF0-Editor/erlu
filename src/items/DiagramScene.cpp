@@ -298,6 +298,14 @@ bool DiagramScene::tryStartArrowDrag(const QPointF& scenePos, Qt::KeyboardModifi
 
 bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
   if (!m_dragArrow) return false;
+  auto markSubdiagramOriginTunnel = [this](ArrowItem* arrow) {
+    if (!arrow || m_currentBlockId < 0) return;
+    auto from = arrow->from();
+    if (!from.tunneled) {
+      from.tunneled = true;
+      arrow->setFrom(from);
+    }
+  };
 
   const auto itemsUnder = items(scenePos);
   // попадание в интерфейсный круг
@@ -357,6 +365,7 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
           m_dragArrow->setFrom(stubEp);
           m_dragArrow->setTo(blockEp);
         }
+        markSubdiagramOriginTunnel(m_dragArrow);
         m_dragArrow->setLabelLocked(true);
         m_dragArrow->finalize();
       }
@@ -366,6 +375,7 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
       to.port = port;
       to.localPos = localPos;
       m_dragArrow->setTo(to);
+      markSubdiagramOriginTunnel(m_dragArrow);
       m_dragArrow->finalize();
     }
 
@@ -398,6 +408,7 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
           m_dragArrow->setFrom(stubEp);
           m_dragArrow->setTo(jun);
         }
+        markSubdiagramOriginTunnel(m_dragArrow);
         m_dragArrow->setLabelLocked(true);
         m_dragArrow->finalize();
       }
@@ -406,6 +417,7 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
       to.junction = j;
       to.port = BlockItem::Port::Input;
       m_dragArrow->setTo(to);
+      markSubdiagramOriginTunnel(m_dragArrow);
       m_dragArrow->finalize();
     }
 
@@ -462,6 +474,7 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
     m_dragArrow->setLabelHidden(hideInherited);
     m_dragArrow->setLabelInherited(true);
     m_dragArrow->setLabelSource(sourceRoot);
+    markSubdiagramOriginTunnel(m_dragArrow);
     m_dragArrow->finalize();
 
     m_dragArrow = nullptr;
@@ -485,6 +498,7 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
     to.scenePos = edgePoint;
     to.port = BlockItem::Port::Input;
     m_dragArrow->setTo(to);
+    markSubdiagramOriginTunnel(m_dragArrow);
     m_dragArrow->finalize();
     m_dragArrow = nullptr;
     m_dragFromBlock.clear();
@@ -558,6 +572,15 @@ bool DiagramScene::tryBranchAtArrow(const QPointF& scenePos) {
 
 DiagramScene::Snapshot DiagramScene::captureSnapshot() const {
   Snapshot s;
+  QString state = m_meta.value("state").toString();
+  if (state.isEmpty()) {
+    if (m_meta.value("publication", false).toBool()) state = "publication";
+    else if (m_meta.value("recommended", false).toBool()) state = "recommended";
+    else if (m_meta.value("draft", false).toBool()) state = "draft";
+    else state = "working";
+  }
+  s.state = state;
+  s.hasState = true;
 
   QSet<BlockItem*> blockSet;
   QSet<JunctionItem*> junctionSet;
@@ -582,6 +605,7 @@ DiagramScene::Snapshot DiagramScene::captureSnapshot() const {
       out.scenePos = *ep.scenePos;
       out.port = ep.port;
     }
+    out.tunneled = ep.tunneled;
     return out;
   };
 
@@ -699,6 +723,7 @@ for (const auto& j : snap.junctions) {
       case Snapshot::Endpoint::Kind::None:
         break;
     }
+    out.tunneled = ep.tunneled;
     return out;
   };
 
@@ -733,7 +758,20 @@ for (const auto& j : snap.junctions) {
     ar->finalize();
   }
 
+  if (snap.hasState) {
+    const QString state = snap.state.isEmpty() ? QStringLiteral("working") : snap.state;
+    m_meta["state"] = state;
+    m_meta["working"] = (state == "working");
+    m_meta["draft"] = (state == "draft");
+    m_meta["recommended"] = (state == "recommended");
+    m_meta["publication"] = (state == "publication");
+  }
+
   m_restoringSnapshot = false;
+  if (m_headerFooter) {
+    m_headerFooter->setMeta(m_meta);
+    m_headerFooter->update();
+  }
   updateCallMechanismLabels();
   if (resetHistoryState) {
     resetHistory(captureSnapshot());
@@ -833,6 +871,7 @@ bool DiagramScene::goDownIntoSelected() {
 
 bool DiagramScene::goUp() {
   if (m_hierarchy.isEmpty()) return false;
+  const int childBlockId = m_currentBlockId;
   Snapshot child = captureSnapshot();
   if (m_currentBlockId >= 0) {
     m_children[currentPathKey()] = child;
@@ -851,6 +890,87 @@ bool DiagramScene::goUp() {
   m_currentBlockId = parent.blockId;
   m_currentPrefix = parent.prefix;
   restoreSnapshot(parent.snapshot);
+
+  if (childBlockId >= 0) {
+    BlockItem* parentBlock = nullptr;
+    for (QGraphicsItem* it : items()) {
+      if (auto* blk = qgraphicsitem_cast<BlockItem*>(it)) {
+        if (blk->id() == childBlockId) {
+          parentBlock = blk;
+          break;
+        }
+      }
+    }
+    if (parentBlock) {
+      const QRectF frame = m_contentRect.isNull() ? sceneRect() : m_contentRect;
+      auto normClamp = [](qreal v) { return std::clamp(v, 0.0, 1.0); };
+      auto frameEdgePoint = [&](BlockItem::Port port, qreal t) {
+        switch (port) {
+          case BlockItem::Port::Input: return QPointF(frame.left(), frame.top() + t * frame.height());
+          case BlockItem::Port::Output: return QPointF(frame.right(), frame.top() + t * frame.height());
+          case BlockItem::Port::Control: return QPointF(frame.left() + t * frame.width(), frame.top());
+          case BlockItem::Port::Mechanism: return QPointF(frame.left() + t * frame.width(), frame.bottom());
+        }
+        return QPointF();
+      };
+      auto edgeKey = [](const BlockItem::Port port, const QPointF& p) {
+        return QStringLiteral("%1:%2:%3").arg(int(port)).arg(p.x(), 0, 'f', 1).arg(p.y(), 0, 'f', 1);
+      };
+      auto labelKey = [](const BlockItem::Port port, const QString& lbl) {
+        return QStringLiteral("%1:%2").arg(int(port)).arg(lbl);
+      };
+      QSet<QString> tunneledEdgeKeys;
+      QSet<QString> tunneledLabelKeys;
+      for (const auto& ar : child.arrows) {
+        if (!(ar.isInterface && ar.isInterfaceStub)) continue;
+        if (!ar.interfaceEdge.tunneled) continue;
+        tunneledEdgeKeys.insert(edgeKey(ar.interfaceEdge.port, ar.interfaceEdge.scenePos.value_or(QPointF())));
+        if (!ar.label.isEmpty()) tunneledLabelKeys.insert(labelKey(ar.interfaceEdge.port, ar.label));
+      }
+
+      const QRectF br = parentBlock->mapRectToScene(parentBlock->boundingRect());
+      auto tY = [&](const QPointF& p) { return normClamp((p.y() - br.top()) / br.height()); };
+      auto tX = [&](const QPointF& p) { return normClamp((p.x() - br.left()) / br.width()); };
+      auto scenePosFor = [](const ArrowItem::Endpoint& ep) {
+        if (ep.block) {
+          if (ep.localPos) return ep.block->mapToScene(*ep.localPos);
+          return ep.block->portScenePos(ep.port);
+        }
+        if (ep.junction) return ep.junction->scenePos();
+        if (ep.scenePos) return *ep.scenePos;
+        return QPointF();
+      };
+
+      for (QGraphicsItem* it : items()) {
+        auto* a = qgraphicsitem_cast<ArrowItem*>(it);
+        if (!a) continue;
+        auto f = a->from();
+        auto t = a->to();
+        bool changed = false;
+        if (t.block == parentBlock) {
+          const QPointF portPos = scenePosFor(t);
+          const qreal tt = (t.port == BlockItem::Port::Control || t.port == BlockItem::Port::Mechanism) ? tX(portPos) : tY(portPos);
+          const QPointF edgeScene = frameEdgePoint(t.port, tt);
+          const bool tun = tunneledEdgeKeys.contains(edgeKey(t.port, edgeScene)) ||
+                           (!a->label().isEmpty() && tunneledLabelKeys.contains(labelKey(t.port, a->label())));
+          if (t.tunneled != tun) { t.tunneled = tun; changed = true; }
+        }
+        if (f.block == parentBlock) {
+          const QPointF portPos = scenePosFor(f);
+          const qreal tt = (f.port == BlockItem::Port::Control || f.port == BlockItem::Port::Mechanism) ? tX(portPos) : tY(portPos);
+          const QPointF edgeScene = frameEdgePoint(f.port, tt);
+          const bool tun = tunneledEdgeKeys.contains(edgeKey(f.port, edgeScene)) ||
+                           (!a->label().isEmpty() && tunneledLabelKeys.contains(labelKey(f.port, a->label())));
+          if (f.tunneled != tun) { f.tunneled = tun; changed = true; }
+        }
+        if (changed) {
+          a->setFrom(f);
+          a->setTo(t);
+          a->finalize();
+        }
+      }
+    }
+  }
   return true;
 }
 
@@ -870,6 +990,16 @@ bool DiagramScene::goDownIntoBlock(BlockItem* b) {
       if (!(ar.isInterface && ar.isInterfaceStub)) preserved.push_back(ar);
     }
     child.arrows = std::move(preserved);
+  } else {
+    QString state = m_meta.value("state").toString();
+    if (state.isEmpty()) {
+      if (m_meta.value("publication", false).toBool()) state = "publication";
+      else if (m_meta.value("recommended", false).toBool()) state = "recommended";
+      else if (m_meta.value("draft", false).toBool()) state = "draft";
+      else state = "working";
+    }
+    child.state = state;
+    child.hasState = true;
   }
 
   // build interface stubs from current parent connections
@@ -951,11 +1081,14 @@ bool DiagramScene::goDownIntoBlock(BlockItem* b) {
       Snapshot::Arrow ar;
       ar.from = makeSceneEndpoint(edgeScene, t.port);
       ar.to = ar.from;
-      ar.label = a->label();
+      ar.label = t.tunneled ? QString() : a->label();
       ar.isInterface = true;
       ar.isInterfaceStub = true;
       ar.labelLocked = true;
       ar.interfaceEdge = ar.from;
+      ar.from.tunneled = t.tunneled;
+      ar.to.tunneled = t.tunneled;
+      ar.interfaceEdge.tunneled = t.tunneled;
       const QString key = ar.label.isEmpty() ? edgeKey(ar.interfaceEdge) : labelKey(ar);
       if (!usedInterfaces.contains(key)) {
         usedInterfaces.insert(key);
@@ -968,11 +1101,14 @@ bool DiagramScene::goDownIntoBlock(BlockItem* b) {
       Snapshot::Arrow ar;
       ar.from = makeSceneEndpoint(edgeScene, f.port);
       ar.to = ar.from;
-      ar.label = a->label();
+      ar.label = f.tunneled ? QString() : a->label();
       ar.isInterface = true;
       ar.isInterfaceStub = true;
       ar.labelLocked = true;
       ar.interfaceEdge = ar.to;
+      ar.from.tunneled = f.tunneled;
+      ar.to.tunneled = f.tunneled;
+      ar.interfaceEdge.tunneled = f.tunneled;
       const QString key = ar.label.isEmpty() ? edgeKey(ar.interfaceEdge) : labelKey(ar);
       if (!usedInterfaces.contains(key)) {
         usedInterfaces.insert(key);
@@ -1223,7 +1359,23 @@ void DiagramScene::deleteSelection() {
   }
   for (ArrowItem* a : arrowsToDelete) {
     if (a->isInterface()) {
-      a->resetInterfaceStub();
+      if (a->isInterfaceStub()) {
+        auto edge = a->interfaceEdge();
+        if (edge) {
+          edge->tunneled = true;
+          a->setInterfaceStub(*edge, QString());
+          a->setLabelHidden(true);
+          a->setLabelInherited(false);
+          a->setLabelSource(nullptr);
+          a->setInterfaceIsStub(true);
+          a->setLabelLocked(true);
+          a->finalize();
+        } else {
+          a->resetInterfaceStub();
+        }
+      } else {
+        a->resetInterfaceStub();
+      }
     } else {
       delete a;
     }
@@ -1357,6 +1509,7 @@ QJsonObject endpointToJson(const DiagramScene::Snapshot::Endpoint& ep) {
   o["kind"] = int(ep.kind);
   o["id"] = ep.id;
   o["port"] = int(ep.port);
+  o["tunneled"] = ep.tunneled;
   if (ep.localPos) {
     o["localPos"] = QJsonArray{ep.localPos->x(), ep.localPos->y()};
   }
@@ -1371,6 +1524,7 @@ DiagramScene::Snapshot::Endpoint endpointFromJson(const QJsonObject& o) {
   ep.kind = DiagramScene::Snapshot::Endpoint::Kind(o.value("kind").toInt());
   ep.id = o.value("id").toInt(-1);
   ep.port = BlockItem::Port(o.value("port").toInt(int(BlockItem::Port::Input)));
+  ep.tunneled = o.value("tunneled").toBool(false);
   if (o.contains("localPos")) {
     const auto arr = o.value("localPos").toArray();
     if (arr.size() == 2) ep.localPos = QPointF(arr[0].toDouble(), arr[1].toDouble());
@@ -1430,6 +1584,7 @@ QVariantMap DiagramScene::exportToVariant() {
       arrows.append(o);
     }
     root["arrows"] = arrows;
+    if (snap.hasState) root["state"] = snap.state;
     return root.toVariantMap();
   };
 
@@ -1454,10 +1609,27 @@ QVariantMap DiagramScene::exportToVariant() {
 }
 
 bool DiagramScene::importFromVariant(const QVariantMap& map) {
-  auto toSnap = [](const QVariantMap& vm, DiagramScene* self) -> std::optional<Snapshot> {
+  const QVariantMap rootMeta = map.value("meta").toMap();
+  auto toSnap = [&rootMeta](const QVariantMap& vm, DiagramScene* self) -> std::optional<Snapshot> {
     QJsonObject root = QJsonObject::fromVariantMap(vm);
     if (!root.contains("blocks") || !root.contains("arrows")) return std::nullopt;
     Snapshot snap;
+    if (root.contains("state")) {
+      snap.state = root.value("state").toString();
+      snap.hasState = true;
+    } else {
+      QString fallback = rootMeta.value("state").toString();
+      if (fallback.isEmpty()) {
+        if (rootMeta.value("publication", false).toBool()) fallback = "publication";
+        else if (rootMeta.value("recommended", false).toBool()) fallback = "recommended";
+        else if (rootMeta.value("draft", false).toBool()) fallback = "draft";
+        else if (rootMeta.value("working", false).toBool()) fallback = "working";
+      }
+      if (!fallback.isEmpty()) {
+        snap.state = fallback;
+        snap.hasState = true;
+      }
+    }
     for (const auto& vb : root.value("blocks").toArray()) {
       const auto o = vb.toObject();
     const auto posArr = o.value("pos").toArray();

@@ -12,6 +12,7 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QCheckBox>
 #include <QVBoxLayout>
 #include <QLocale>
@@ -285,7 +286,10 @@ void BlockItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) {
 
   auto* layout = new QVBoxLayout(dlg);
   auto* form = new QFormLayout();
-  auto* titleEdit = new QLineEdit(m_title, dlg);
+  auto* titleEdit = new QPlainTextEdit(dlg);
+  titleEdit->setPlainText(m_title);
+  titleEdit->setTabChangesFocus(true);
+  titleEdit->setMinimumHeight(72);
   form->addRow(tr("Title:"), titleEdit);
 
   auto affixes = currencyAffixes();
@@ -312,8 +316,10 @@ void BlockItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) {
 
   bool changed = false;
   if (dlg->exec() == QDialog::Accepted) {
-    if (m_title != titleEdit->text()) {
-      setTitle(titleEdit->text());
+    QString newTitle = titleEdit->toPlainText();
+    newTitle.replace('\r', "");
+    if (m_title != newTitle) {
+      setTitle(newTitle);
       changed = true;
     }
     std::optional<qreal> newPrice;

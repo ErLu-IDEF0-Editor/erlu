@@ -7,6 +7,7 @@
 #include <QStatusBar>
 #include <QDialog>
 #include <QTabWidget>
+#include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QLineEdit>
@@ -68,6 +69,23 @@ static QPageLayout::Orientation pageOrientationFromMeta(const QVariantMap& meta)
   return QPageLayout::Landscape;
 }
 
+static QVariantMap stripPerDiagramState(QVariantMap meta) {
+  meta.remove("state");
+  meta.remove("working");
+  meta.remove("draft");
+  meta.remove("recommended");
+  meta.remove("publication");
+  return meta;
+}
+
+static QVariantMap mergeWithDiagramState(QVariantMap globalMeta, const QVariantMap& diagramMeta) {
+  for (const char* key : {"state", "working", "draft", "recommended", "publication"}) {
+    const QString k = QString::fromLatin1(key);
+    if (diagramMeta.contains(k)) globalMeta[k] = diagramMeta.value(k);
+  }
+  return globalMeta;
+}
+
 MainWindow::MainWindow(const QString& startupPath, QWidget* parent)
   : QMainWindow(parent)
 {
@@ -91,10 +109,10 @@ void MainWindow::setupUi() {
     m_scene = new DiagramScene(this);
     connect(m_scene, &DiagramScene::changed, this, [this]{ markDirty(true); });
     connect(m_scene, &DiagramScene::metaChanged, this, [this](const QVariantMap& meta){
-      m_welcomeState = meta;
+      m_welcomeState = stripPerDiagramState(meta);
       markDirty(true);
     });
-    m_scene->applyMeta(m_welcomeState);
+    m_scene->applyMeta(mergeWithDiagramState(m_welcomeState, m_scene->meta()));
   }
   m_view = new QGraphicsView(m_scene, this);
   m_view->setRenderHint(QPainter::Antialiasing, true);
@@ -155,6 +173,12 @@ void MainWindow::setupActions() {
   });
   viewMenu->addAction(actZoomOut);
 
+  auto* actNodeTree = new QAction(tr("Node tree…"), this);
+  connect(actNodeTree, &QAction::triggered, this, [this]{
+    showNodeTreeDialog();
+  });
+  viewMenu->addAction(actNodeTree);
+
   m_actDarkMode = new QAction(tr("Dark mode"), this);
   m_actDarkMode->setCheckable(true);
   m_actDarkMode->setChecked(m_welcomeState.value("darkMode", false).toBool());
@@ -173,7 +197,7 @@ void MainWindow::setupActions() {
     m_welcomeState["resolvedDarkMode"] = effectiveDarkMode();
     m_actDarkMode->setEnabled(!followSystem);
     applyAppPalette(m_welcomeState.value("resolvedDarkMode").toBool());
-    m_scene->applyMeta(m_welcomeState);
+    m_scene->applyMeta(mergeWithDiagramState(m_welcomeState, m_scene->meta()));
     if (mark) markDirty(true);
   };
   connect(m_actDarkMode, &QAction::toggled, this, [applyModes]{ applyModes(true); });
@@ -237,7 +261,7 @@ void MainWindow::setupActions() {
     QVariantMap root;
     root["diagram"] = exported.value("diagram");
     root["children"] = exported.value("children");
-    root["meta"] = m_welcomeState;
+    root["meta"] = stripPerDiagramState(m_welcomeState);
     QJsonDocument doc = QJsonDocument::fromVariant(root);
     QFile f(outPath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -272,15 +296,18 @@ void MainWindow::setupActions() {
     scope->addItems({tr("Current diagram"), tr("All diagrams")});
     auto* pageNumbers = new QCheckBox(tr("Number pages in footer (NUMBER field)"), &dlg);
     pageNumbers->setChecked(false);
+    auto* forceLight = new QCheckBox(tr("Use a light theme regardless of the document theme"), &dlg);
+    forceLight->setChecked(true);
     form->addRow(tr("Export scope:"), scope);
     form->addRow(QString(), pageNumbers);
+    form->addRow(QString(), forceLight);
     layout->addLayout(form);
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     layout->addWidget(buttons);
     if (dlg.exec() != QDialog::Accepted) return;
-    exportPdf(scope->currentIndex() == 1, pageNumbers->isChecked());
+    exportPdf(scope->currentIndex() == 1, pageNumbers->isChecked(), forceLight->isChecked());
   });
 
   connect(actCallMech, &QAction::triggered, this, [this]{
@@ -415,11 +442,11 @@ bool MainWindow::showWelcome() {
                            ? QString::fromUtf8("\u20BD")
                            : currencySymbolForLocale(loc);
   auto* currency = new QComboBox(units);
-  currency->setEditable(false);
+  currency->setEditable(true);
   currency->addItem(curSym);
   if (curSym != "$") currency->addItem("$");
   const QString existingCur = m_welcomeState.value("currency").toString();
-  if (!existingCur.isEmpty() && currency->findText(existingCur) >= 0) {
+  if (!existingCur.isEmpty()) {
     currency->setCurrentText(existingCur);
   } else {
     currency->setCurrentIndex(0);
@@ -507,10 +534,10 @@ void MainWindow::resetScene() {
   m_scene = new DiagramScene(this);
   connect(m_scene, &DiagramScene::changed, this, [this]{ markDirty(true); });
   connect(m_scene, &DiagramScene::metaChanged, this, [this](const QVariantMap& meta){
-    m_welcomeState = meta;
+    m_welcomeState = stripPerDiagramState(meta);
     markDirty(true);
   });
-  m_scene->applyMeta(m_welcomeState);
+  m_scene->applyMeta(mergeWithDiagramState(m_welcomeState, m_scene->meta()));
   if (m_view) m_view->setScene(m_scene);
   if (old) old->deleteLater();
 }
@@ -518,8 +545,8 @@ void MainWindow::resetScene() {
 void MainWindow::newDiagram() {
   if (!showWelcome()) return;
   resetScene();
-  m_scene->createBlockAt(QPointF(-200, -50))->setPos(-300, -150);
-  m_scene->createBlockAt(QPointF(200, -50))->setPos(200, -150);
+  const QRectF bounds = m_scene->contentRect().isNull() ? m_scene->sceneRect() : m_scene->contentRect();
+  m_scene->createBlockAt(bounds.center());
   m_currentFile.clear();
   markDirty(false);
 }
@@ -540,7 +567,8 @@ bool MainWindow::promptStartup() {
   }
   if (!showWelcome()) return false;
   resetScene();
-  m_scene->createBlockAt(QPointF(-100, -50));
+  const QRectF bounds = m_scene->contentRect().isNull() ? m_scene->sceneRect() : m_scene->contentRect();
+  m_scene->createBlockAt(bounds.center());
   m_currentFile.clear();
   markDirty(false);
   return true;
@@ -566,7 +594,7 @@ bool MainWindow::loadDiagramFromPath(const QString& path) {
     return false;
   }
   if (root.contains("meta")) {
-    m_welcomeState = root.value("meta").toMap();
+    m_welcomeState = stripPerDiagramState(root.value("meta").toMap());
   }
   if (m_actDarkMode && m_actFollowSystemTheme) {
     const QSignalBlocker b2(m_actDarkMode);
@@ -577,13 +605,13 @@ bool MainWindow::loadDiagramFromPath(const QString& path) {
   }
   m_welcomeState["resolvedDarkMode"] = effectiveDarkMode();
   applyAppPalette(m_welcomeState.value("resolvedDarkMode").toBool());
-  m_scene->applyMeta(m_welcomeState);
+  m_scene->applyMeta(mergeWithDiagramState(m_welcomeState, m_scene->meta()));
   m_currentFile = path;
   markDirty(false);
   return true;
 }
 
-bool MainWindow::exportPdf(bool allDiagrams, bool numberPages) {
+bool MainWindow::exportPdf(bool allDiagrams, bool numberPages, bool forceLightTheme) {
   QString path = QFileDialog::getSaveFileName(this, tr("Export to PDF"), QString(), tr(kPdfFileFilter));
   if (path.isEmpty()) return false;
   if (QFileInfo(path).suffix().isEmpty()) path += ".pdf";
@@ -611,6 +639,10 @@ bool MainWindow::exportPdf(bool allDiagrams, bool numberPages) {
         meta["footerNumberOverride"] = QString::number(pageNo);
       } else {
         meta.remove("footerNumberOverride");
+      }
+      if (forceLightTheme) {
+        meta["darkMode"] = false;
+        meta["resolvedDarkMode"] = false;
       }
       ds->applyMeta(meta);
     }
@@ -648,14 +680,14 @@ bool MainWindow::exportPdf(bool allDiagrams, bool numberPages) {
   collectKeys(QString(), exported.value("diagram").toMap());
 
   DiagramScene tempScene;
-  tempScene.applyMeta(m_welcomeState);
+  tempScene.applyMeta(mergeWithDiagramState(m_welcomeState, tempScene.meta()));
 
   QVariantMap mapRoot;
   mapRoot["diagram"] = exported.value("diagram");
   mapRoot["children"] = children;
   bool first = true;
   if (tempScene.importFromVariant(mapRoot)) {
-    tempScene.applyMeta(m_welcomeState);
+    tempScene.applyMeta(mergeWithDiagramState(m_welcomeState, tempScene.meta()));
     renderScene(&tempScene, false);
     first = false;
   }
@@ -674,7 +706,7 @@ bool MainWindow::exportPdf(bool allDiagrams, bool numberPages) {
     mapOne["children"] = relChildren;
 
     if (!tempScene.importFromVariant(mapOne)) continue;
-    tempScene.applyMeta(m_welcomeState);
+    tempScene.applyMeta(mergeWithDiagramState(m_welcomeState, tempScene.meta()));
     renderScene(&tempScene, !first);
     first = false;
   }
@@ -719,6 +751,119 @@ void MainWindow::applyAppPalette(bool darkMode) {
 
 bool MainWindow::openDiagramPath(const QString& path) {
   return loadDiagramFromPath(path);
+}
+
+void MainWindow::showNodeTreeDialog() {
+  if (!m_scene) return;
+  const QVariantMap exported = m_scene->exportToVariant();
+  const QVariantMap rootDiagram = exported.value("diagram").toMap();
+  const QVariantMap children = exported.value("children").toMap();
+
+  auto* dlg = new QDialog(this);
+  dlg->setWindowTitle(tr("Node tree"));
+  auto* layout = new QVBoxLayout(dlg);
+  auto* tree = new QTreeWidget(dlg);
+  tree->setHeaderHidden(true);
+  tree->setExpandsOnDoubleClick(false);
+
+  auto itemText = [](const QVariantMap& block) {
+    const QString num = block.value("number").toString();
+    const QString title = block.value("title").toString();
+    if (num.isEmpty()) return title;
+    if (title.isEmpty()) return num;
+    return QStringLiteral("%1 %2").arg(num, title);
+  };
+
+  std::function<void(QTreeWidgetItem*, const QVariantMap&, const QString&)> addSubtree;
+  addSubtree = [&](QTreeWidgetItem* parent, const QVariantMap& diagram, const QString& prefix) {
+    const QVariantList blockList = diagram.value("blocks").toList();
+    QVector<QVariant> blocks;
+    blocks.reserve(blockList.size());
+    for (const QVariant& v : blockList) blocks.push_back(v);
+    std::sort(blocks.begin(), blocks.end(), [](const QVariant& a, const QVariant& b) {
+      const QVariantMap ma = a.toMap();
+      const QVariantMap mb = b.toMap();
+      const QString na = ma.value("number").toString();
+      const QString nb = mb.value("number").toString();
+      if (na == nb) return ma.value("id", -1).toInt() < mb.value("id", -1).toInt();
+      return na.localeAwareCompare(nb) < 0;
+    });
+    for (const QVariant& vb : blocks) {
+      const QVariantMap block = vb.toMap();
+      const int id = block.value("id", -1).toInt();
+      auto* it = new QTreeWidgetItem();
+      it->setText(0, itemText(block));
+      it->setData(0, Qt::UserRole, prefix);        // diagram path containing this block
+      it->setData(0, Qt::UserRole + 1, id);        // block id in that diagram
+      parent->addChild(it);
+      if (id < 0) continue;
+      const QString key = prefix.isEmpty() ? QString::number(id) : (prefix + "/" + QString::number(id));
+      if (children.contains(key)) {
+        addSubtree(it, children.value(key).toMap(), key);
+      }
+    }
+  };
+
+  const QString rootName = m_welcomeState.value("title").toString().isEmpty()
+    ? tr("Model")
+    : m_welcomeState.value("title").toString();
+  auto* root = new QTreeWidgetItem(tree);
+  root->setText(0, QStringLiteral("A-0 %1").arg(rootName));
+  root->setData(0, Qt::UserRole, QString());
+  root->setData(0, Qt::UserRole + 1, -1);
+  tree->addTopLevelItem(root);
+  addSubtree(root, rootDiagram, QString());
+  tree->expandAll();
+
+  connect(tree, &QTreeWidget::itemDoubleClicked, this, [this, tree](QTreeWidgetItem* item, int) {
+    if (!item || !m_scene) return;
+    const QString path = item->data(0, Qt::UserRole).toString();
+    const int blockId = item->data(0, Qt::UserRole + 1).toInt();
+
+    while (m_scene->goUp()) {}
+
+    const QStringList parts = path.split('/', Qt::SkipEmptyParts);
+    for (const QString& part : parts) {
+      bool ok = false;
+      const int id = part.toInt(&ok);
+      if (!ok) break;
+      BlockItem* target = nullptr;
+      for (QGraphicsItem* gi : m_scene->items()) {
+        if (auto* b = qgraphicsitem_cast<BlockItem*>(gi)) {
+          if (b->id() == id) {
+            target = b;
+            break;
+          }
+        }
+      }
+      if (!target || !m_scene->goDownIntoBlock(target)) break;
+    }
+
+    m_scene->clearSelection();
+    if (blockId >= 0) {
+      for (QGraphicsItem* gi : m_scene->items()) {
+        if (auto* b = qgraphicsitem_cast<BlockItem*>(gi)) {
+          if (b->id() == blockId) {
+            b->setSelected(true);
+            if (m_view) m_view->centerOn(b);
+            break;
+          }
+        }
+      }
+    } else if (m_view) {
+      m_view->centerOn(m_scene->sceneRect().center());
+    }
+    tree->setCurrentItem(item);
+  });
+
+  layout->addWidget(tree);
+  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+  connect(buttons, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+  connect(buttons, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+  layout->addWidget(buttons);
+  dlg->resize(640, 520);
+  dlg->exec();
+  dlg->deleteLater();
 }
 
 void MainWindow::closeEvent(QCloseEvent* e) {

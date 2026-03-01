@@ -19,7 +19,9 @@ static void ensureTranslator(Idef0Host* host) {
 
   QStringList candidates;
   auto addCandidate = [&](const QString& c) {
-    if (!c.isEmpty() && !c.contains("C")) candidates << c;
+    if (c.isEmpty()) return;
+    if (c == QStringLiteral("C") || c == QStringLiteral("POSIX")) return;
+    candidates << c;
   };
   addCandidate(baseLocale);
   addCandidate(shortLocale);

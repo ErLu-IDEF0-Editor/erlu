@@ -19,6 +19,7 @@ public:
     BlockItem::Port port = BlockItem::Port::Input;
     std::optional<QPointF> localPos;  // точка на стороне блока (в локальных координатах)
     std::optional<QPointF> scenePos;  // произвольная точка на сцене (например, граница)
+    bool tunneled = false;
   };
 
   ArrowItem(QGraphicsItem* parent = nullptr);
@@ -66,6 +67,10 @@ public:
   bool isCallMechanism() const { return m_isCallMechanism; }
   void setCallRefId(int id) { m_callRefId = id; }
   int callRefId() const { return m_callRefId; }
+  void setFromTunneled(bool v);
+  void setToTunneled(bool v);
+  bool isFromTunneled() const { return m_from.tunneled; }
+  bool isToTunneled() const { return m_to.tunneled; }
 
   void updatePath();
   std::optional<QPointF> hitTest(const QPointF& scenePos, qreal radius) const;
@@ -104,6 +109,7 @@ private:
   QPointF m_lastDragScenePos;
 
   void drawArrowHead(QPainterPath& path, const QPointF& tip, const QPointF& from);
+  void drawTunnelBrackets(QPainterPath& path, const QPointF& tip, const QPointF& from);
   QVector<QPointF> computePolyline() const;
   static QPointF portDirection(const Endpoint& ep, bool isFrom, const QPointF& fallbackDir, const QGraphicsScene* scene);
   static QVector<QPointF> simplifyPolyline(const QVector<QPointF>& pts);
@@ -111,6 +117,8 @@ private:
   void updateLabelItem(const QVector<QPointF>& pts);
 
 protected:
+  QRectF boundingRect() const override;
+  QPainterPath shape() const override;
   void hoverMoveEvent(QGraphicsSceneHoverEvent* e) override;
   void mousePressEvent(QGraphicsSceneMouseEvent* e) override;
   void mouseMoveEvent(QGraphicsSceneMouseEvent* e) override;

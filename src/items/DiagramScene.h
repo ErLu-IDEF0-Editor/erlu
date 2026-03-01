@@ -51,6 +51,7 @@ private:
       BlockItem::Port port = BlockItem::Port::Input;
       std::optional<QPointF> localPos;
       std::optional<QPointF> scenePos;
+      bool tunneled = false;
     };
     struct Block { int id; QString title; QPointF pos; bool hasDecomp = false; QString number; std::optional<qreal> price; std::optional<QString> color; };
     struct Junction { int id; QPointF pos; };
@@ -72,6 +73,8 @@ private:
       bool callMechanism = false;
       int callRefId = -1;
     };
+    QString state;
+    bool hasState = false;
     QVector<Block> blocks;
     QVector<Junction> junctions;
     QVector<Arrow> arrows;

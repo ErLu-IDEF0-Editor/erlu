@@ -34,18 +34,51 @@ public:
 int main(int argc, char** argv) {
   IdefApplication app(argc, argv);
 
+  const QLocale systemLocale = QLocale::system();
+  QLocale::setDefault(systemLocale);
+
   QTranslator translator;
-  const QLocale locale;
-  const QString baseName = QStringLiteral("idef0_%1").arg(locale.name());
+  QStringList candidates;
+  auto addCandidate = [&](const QString& c) {
+    if (c.isEmpty()) return;
+    const QString normalized = QString(c).replace('-', '_');
+    if (normalized == QStringLiteral("C") || normalized == QStringLiteral("POSIX")) return;
+    candidates << normalized;
+    const QString shortName = normalized.section('_', 0, 0);
+    if (!shortName.isEmpty()) candidates << shortName;
+  };
+  addCandidate(QLocale().name());
+  addCandidate(systemLocale.name());
+  for (const QString& lang : systemLocale.uiLanguages()) {
+    addCandidate(lang);
+  }
+  addCandidate(QString::fromLocal8Bit(qgetenv("LANG")).section('.', 0, 0));
+  candidates.removeDuplicates();
+  if (candidates.isEmpty()) candidates << QStringLiteral("en");
+
   const QStringList searchPaths = {
     QDir::currentPath() + "/translations",
     QCoreApplication::applicationDirPath() + "/../share/idef0/translations",
     ":/i18n"
   };
-  for (const QString& path : searchPaths) {
-    if (translator.load(baseName, path)) {
-      app.installTranslator(&translator);
-      break;
+  bool loaded = false;
+  for (const QString& loc : candidates) {
+    const QString baseName = QStringLiteral("idef0_%1").arg(loc);
+    for (const QString& path : searchPaths) {
+      if (translator.load(baseName, path)) {
+        app.installTranslator(&translator);
+        loaded = true;
+        break;
+      }
+    }
+    if (loaded) break;
+  }
+  if (!loaded) {
+    for (const QString& path : searchPaths) {
+      if (translator.load(QStringLiteral("idef0_en"), path)) {
+        app.installTranslator(&translator);
+        break;
+      }
     }
   }
 
@@ -62,7 +95,7 @@ int main(int argc, char** argv) {
   app.fileOpenHandler = [&w](const QString& path) {
     w.openDiagramPath(path);
   };
-  w.resize(1200, 800);
+  w.resize(1150, 850);
   w.show();
   return app.exec();
 }

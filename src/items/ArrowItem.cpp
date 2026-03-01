@@ -30,6 +30,24 @@ static QRectF labelDragHitRect(const QGraphicsSimpleTextItem* item) {
   // Generous hit area makes label dragging much less fiddly.
   return item->sceneBoundingRect().adjusted(-16, -10, 16, 10);
 }
+
+QRectF ArrowItem::boundingRect() const {
+  QRectF r = QGraphicsPathItem::boundingRect();
+  if (m_labelItem && m_labelItem->isVisible()) {
+    r = r.united(mapRectFromScene(labelDragHitRect(m_labelItem)));
+  }
+  return r;
+}
+
+QPainterPath ArrowItem::shape() const {
+  QPainterPath s = QGraphicsPathItem::shape();
+  if (m_labelItem && m_labelItem->isVisible()) {
+    QPainterPath labelZone;
+    labelZone.addRect(mapRectFromScene(labelDragHitRect(m_labelItem)));
+    s = s.united(labelZone);
+  }
+  return s;
+}
 QColor ArrowItem::s_lineColor = QColor(10, 10, 10);
 QColor ArrowItem::s_textColor = QColor(10, 10, 10);
 
@@ -160,6 +178,18 @@ void ArrowItem::setInterfaceIsStub(bool stub) {
 
 void ArrowItem::setLabelLocked(bool locked) {
   m_labelLocked = locked;
+}
+
+void ArrowItem::setFromTunneled(bool v) {
+  if (m_from.tunneled == v) return;
+  m_from.tunneled = v;
+  updatePath();
+}
+
+void ArrowItem::setToTunneled(bool v) {
+  if (m_to.tunneled == v) return;
+  m_to.tunneled = v;
+  updatePath();
 }
 
 bool ArrowItem::adjustEndpoint(Endpoint& ep, const QPointF& delta) {
@@ -484,7 +514,7 @@ QPointF ArrowItem::portDirection(const Endpoint& ep, bool isFrom, const QPointF&
     const qreal db = std::abs(p.y() - r.bottom());
     const qreal m = std::min({dl, dr, dt, db});
     if (m == dl) return isFrom ? QPointF(1,0) : QPointF(-1,0);
-    if (m == dr) return isFrom ? QPointF(-1,0) : QPointF(1,0); // right edge is target-only
+    if (m == dr) return QPointF(-1,0); // right-edge targets must be approached from inside (left)
     if (m == dt) return isFrom ? QPointF(0,1) : QPointF(0,-1);
     if (m == db) return isFrom ? QPointF(0,-1) : QPointF(0,1);
   }
@@ -540,13 +570,6 @@ QVector<QPointF> ArrowItem::computePolyline() const {
                                     : QPointF(0, ((a - b).y() >= 0 ? 1 : -1)),
                                   QPointF(-1,0))
                    : portDirection(m_to, false, QPointF(-1,0), scene());
-  // ensure right border always behaves like an input (approach from left)
-  if (!m_hasTempEnd && m_to.scenePos && scene()) {
-    const qreal rightX = scene()->sceneRect().right();
-    if (almostEqual(m_to.scenePos->x(), rightX)) {
-      dirB = QPointF(-1, 0);
-    }
-  }
 
   auto expandRect = [](const QRectF& r, qreal m) {
     return QRectF(r.x()-m, r.y()-m, r.width()+2*m, r.height()+2*m);
@@ -645,7 +668,22 @@ void ArrowItem::updateLabelItem(const QVector<QPointF>& pts) {
     }
     const QPointF p = scenePortPos(*m_interfaceEdge);
     const QRectF br = m_labelItem->boundingRect();
-    m_labelItem->setPos(p + m_labelOffset + QPointF(10, -br.height() * 0.5));
+    QPointF sideOffset;
+    switch (m_interfaceEdge->port) {
+      case BlockItem::Port::Input:
+        sideOffset = QPointF(10, -br.height() * 0.5); // right of left frame side
+        break;
+      case BlockItem::Port::Output:
+        sideOffset = QPointF(-10 - br.width(), -br.height() * 0.5); // left of right frame side
+        break;
+      case BlockItem::Port::Control:
+        sideOffset = QPointF(-br.width() * 0.5, 10); // below top frame side
+        break;
+      case BlockItem::Port::Mechanism:
+        sideOffset = QPointF(-br.width() * 0.5, -10 - br.height()); // above bottom frame side
+        break;
+    }
+    m_labelItem->setPos(p + m_labelOffset + sideOffset);
     m_labelItem->setVisible(true);
     return;
   }
@@ -689,7 +727,12 @@ void ArrowItem::updateLabelItem(const QVector<QPointF>& pts) {
 // Обновляем маршрут ортогонально, добавляя/схлопывая сегменты при необходимости.
 void ArrowItem::updatePath() {
   QPen themedPen = pen();
-  themedPen.setColor(m_customColor.value_or(s_lineColor));
+  QColor lineColor = m_customColor.value_or(s_lineColor);
+  if (m_labelDragging) {
+    lineColor = lineColor.lighter(150);
+  }
+  themedPen.setColor(lineColor);
+  themedPen.setWidthF(m_labelDragging ? 2.2 : 1.4);
   if (m_isCallMechanism) {
     themedPen.setStyle(Qt::DashLine);
   }
@@ -702,18 +745,19 @@ void ArrowItem::updatePath() {
 
   QVector<QPointF> pts = computePolyline();
   m_lastPolyline = pts;
+  const QVector<QPointF>& drawPts = pts;
 
   QPainterPath p;
   const bool stubOnly = m_isInterface && m_interfaceStubOnly;
-  if (!pts.isEmpty() && !stubOnly) {
-    p.moveTo(pts.first());
-    for (int i = 1; i < pts.size(); ++i) {
-      p.lineTo(pts[i]);
+  if (!drawPts.isEmpty() && !stubOnly) {
+    p.moveTo(drawPts.first());
+    for (int i = 1; i < drawPts.size(); ++i) {
+      p.lineTo(drawPts[i]);
     }
   }
 
   // interface stub circle at edge
-  if (m_isInterface && m_interfaceEdge && m_interfaceStubOnly) {
+  if (m_isInterface && m_interfaceEdge && m_interfaceStubOnly && !m_interfaceEdge->tunneled) {
     const QPointF stubPos = scenePortPos(*m_interfaceEdge);
     const qreal r = 6.0;
     p.addEllipse(stubPos, r, r);
@@ -721,10 +765,18 @@ void ArrowItem::updatePath() {
 
   // наконечник стрелки
   // Draw arrow head only if the path truly ends (not branching through a junction).
-  if (!stubOnly && pts.size() >= 2 && !m_to.junction) {
-    const QPointF tip = pts.last();
-    const QPointF from = pts[pts.size() - 2];
+  if (!stubOnly && drawPts.size() >= 2 && !m_to.junction) {
+    const QPointF tip = drawPts.last();
+    const QPointF from = drawPts[drawPts.size() - 2];
     drawArrowHead(p, tip, from);
+    if (m_to.tunneled) {
+      drawTunnelBrackets(p, tip, from);
+    }
+  }
+  if (!stubOnly && drawPts.size() >= 2 && m_from.tunneled) {
+    const QPointF tip = drawPts.first();
+    const QPointF from = tip - normalizedOr(drawPts[1] - tip, QPointF(1, 0));
+    drawTunnelBrackets(p, tip, from);
   }
 
   // Обновляем геометрию, чтобы сцена инвалидацировала старую и новую области.
@@ -748,7 +800,7 @@ void ArrowItem::hoverMoveEvent(QGraphicsSceneHoverEvent* e) {
   const QVector<QPointF> pts = computePolyline();
   QPointF pos = e->scenePos();
 
-  if (!m_labelLocked && m_labelItem && labelDragHitRect(m_labelItem).contains(pos)) {
+  if (m_labelItem && labelDragHitRect(m_labelItem).contains(pos)) {
     setCursor(Qt::SizeAllCursor);
     QGraphicsPathItem::hoverMoveEvent(e);
     return;
@@ -777,10 +829,11 @@ void ArrowItem::mousePressEvent(QGraphicsSceneMouseEvent* e) {
   // Keep label geometry in sync before hit-testing drag area.
   updateLabelItem(m_lastPolyline.isEmpty() ? computePolyline() : m_lastPolyline);
 
-  if (!m_labelLocked && m_labelItem && labelDragHitRect(m_labelItem).contains(e->scenePos())) {
+  if (m_labelItem && labelDragHitRect(m_labelItem).contains(e->scenePos())) {
     m_labelDragging = true;
     m_labelDragLastScene = e->scenePos();
     setCursor(Qt::SizeAllCursor);
+    updatePath();
     e->accept();
     return;
   }
@@ -844,7 +897,7 @@ void ArrowItem::mouseMoveEvent(QGraphicsSceneMouseEvent* e) {
     const QPointF delta = e->scenePos() - m_labelDragLastScene;
     m_labelDragLastScene = e->scenePos();
     m_labelOffset += delta;
-    updateLabelItem(m_lastPolyline.isEmpty() ? computePolyline() : m_lastPolyline);
+    updatePath();
     e->accept();
     return;
   }
@@ -900,6 +953,7 @@ void ArrowItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* e) {
   if (m_labelDragging && e->button() == Qt::LeftButton) {
     m_labelDragging = false;
     unsetCursor();
+    updatePath();
     if (auto* ds = qobject_cast<DiagramScene*>(scene())) {
       ds->requestSnapshot();
     }
@@ -969,4 +1023,31 @@ void ArrowItem::drawArrowHead(QPainterPath& path, const QPointF& tip, const QPoi
   path.moveTo(left);
   path.lineTo(tip);
   path.lineTo(right);
+}
+
+void ArrowItem::drawTunnelBrackets(QPainterPath& path, const QPointF& tip, const QPointF& from) {
+  const QPointF v = tip - from;
+  const qreal len = std::hypot(v.x(), v.y());
+  if (len < 0.001) return;
+
+  const QPointF dir = v / len;
+  const QPointF n(-dir.y(), dir.x());
+  // Pull marker inward so both brackets remain visible even when tip is on the frame edge.
+  const QPointF c = tip;
+  const qreal h = 9.0;
+  const qreal w = 5.0;
+  const qreal gap = 8.5;
+
+  // Rotate tunnel marker by 90 degrees around arrow-end center.
+  const QPointF l0 = c - n * gap - dir * h;
+  const QPointF l1 = c - n * (gap + w);
+  const QPointF l2 = c - n * gap + dir * h;
+  path.moveTo(l0);
+  path.quadTo(l1, l2);
+
+  const QPointF r0 = c + n * gap - dir * h;
+  const QPointF r1 = c + n * (gap + w);
+  const QPointF r2 = c + n * gap + dir * h;
+  path.moveTo(r0);
+  path.quadTo(r1, r2);
 }
