@@ -560,8 +560,8 @@
         <translation>Untitled</translation>
     </message>
     <message>
-        <source> — IDEF0 editor</source>
-        <translation> — IDEF0 editor</translation>
+        <source> — erlu IDEF0 editor</source>
+        <translation> — erlu IDEF0 editor</translation>
     </message>
 </context>
 </TS>

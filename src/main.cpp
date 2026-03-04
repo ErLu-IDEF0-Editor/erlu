@@ -2,6 +2,8 @@
 #include <QTranslator>
 #include <QLocale>
 #include <QDir>
+#include <QIcon>
+#include <QFile>
 #include <QCoreApplication>
 #include <QEvent>
 #include <QFileOpenEvent>
@@ -33,6 +35,19 @@ public:
 
 int main(int argc, char** argv) {
   IdefApplication app(argc, argv);
+  const QString resIcon = QStringLiteral(":/icons/erlu.svg");
+  if (QFile::exists(resIcon)) {
+    app.setWindowIcon(QIcon(resIcon));
+  } else {
+    const QString appDir = QCoreApplication::applicationDirPath();
+    const QString fallback1 = appDir + QStringLiteral("/../share/icons/hicolor/scalable/apps/erlu.svg");
+    const QString fallback2 = QDir::currentPath() + QStringLiteral("/assets/icons/erlu.svg");
+    if (QFile::exists(fallback1)) {
+      app.setWindowIcon(QIcon(fallback1));
+    } else if (QFile::exists(fallback2)) {
+      app.setWindowIcon(QIcon(fallback2));
+    }
+  }
 
   const QLocale systemLocale = QLocale::system();
   QLocale::setDefault(systemLocale);

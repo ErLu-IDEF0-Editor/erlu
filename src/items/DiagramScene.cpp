@@ -26,6 +26,11 @@ DiagramScene::DiagramScene(QObject* parent)
   : QGraphicsScene(parent)
 {
   m_currentPrefix.clear();
+  m_meta["state"] = QStringLiteral("working");
+  m_meta["working"] = true;
+  m_meta["draft"] = false;
+  m_meta["recommended"] = false;
+  m_meta["publication"] = false;
   // Ограничиваем рабочую область A4 (210x297 мм) в пикселях при 96 dpi (~793x1122).
   // По умолчанию используем альбомную ориентацию (ширина больше высоты).
   const qreal w = 1122;
@@ -284,6 +289,10 @@ bool DiagramScene::tryStartArrowDrag(const QPointF& scenePos, Qt::KeyboardModifi
     ArrowItem::Endpoint from;
     from.scenePos = edgePoint;
     from.port = BlockItem::Port::Input; // ориентация не важна для свободной точки
+    if (m_currentBlockId >= 0) {
+      // Non-root subdiagram frame endpoints without interface stub are tunneled at source.
+      from.tunneled = true;
+    }
     a->setFrom(from);
     a->setTempEndPoint(scenePos);
     m_dragArrow = a;
@@ -298,14 +307,6 @@ bool DiagramScene::tryStartArrowDrag(const QPointF& scenePos, Qt::KeyboardModifi
 
 bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
   if (!m_dragArrow) return false;
-  auto markSubdiagramOriginTunnel = [this](ArrowItem* arrow) {
-    if (!arrow || m_currentBlockId < 0) return;
-    auto from = arrow->from();
-    if (!from.tunneled) {
-      from.tunneled = true;
-      arrow->setFrom(from);
-    }
-  };
 
   const auto itemsUnder = items(scenePos);
   // попадание в интерфейсный круг
@@ -345,6 +346,7 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
     BlockItem::Port port{};
     QPointF localPos;
     if (!b->hitTestPort(scenePos, &port, &localPos)) continue;
+    if (port == BlockItem::Port::Output) continue; // end of arrow cannot connect to Output port
 
     // запретим соединять в тот же самый порт того же блока (упрощение)
     if (b == m_dragFromBlock && port == m_dragFromPort) continue;
@@ -365,7 +367,6 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
           m_dragArrow->setFrom(stubEp);
           m_dragArrow->setTo(blockEp);
         }
-        markSubdiagramOriginTunnel(m_dragArrow);
         m_dragArrow->setLabelLocked(true);
         m_dragArrow->finalize();
       }
@@ -375,7 +376,6 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
       to.port = port;
       to.localPos = localPos;
       m_dragArrow->setTo(to);
-      markSubdiagramOriginTunnel(m_dragArrow);
       m_dragArrow->finalize();
     }
 
@@ -408,7 +408,6 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
           m_dragArrow->setFrom(stubEp);
           m_dragArrow->setTo(jun);
         }
-        markSubdiagramOriginTunnel(m_dragArrow);
         m_dragArrow->setLabelLocked(true);
         m_dragArrow->finalize();
       }
@@ -417,7 +416,6 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
       to.junction = j;
       to.port = BlockItem::Port::Input;
       m_dragArrow->setTo(to);
-      markSubdiagramOriginTunnel(m_dragArrow);
       m_dragArrow->finalize();
     }
 
@@ -474,7 +472,6 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
     m_dragArrow->setLabelHidden(hideInherited);
     m_dragArrow->setLabelInherited(true);
     m_dragArrow->setLabelSource(sourceRoot);
-    markSubdiagramOriginTunnel(m_dragArrow);
     m_dragArrow->finalize();
 
     m_dragArrow = nullptr;
@@ -497,8 +494,11 @@ bool DiagramScene::tryFinishArrowDrag(const QPointF& scenePos) {
     ArrowItem::Endpoint to;
     to.scenePos = edgePoint;
     to.port = BlockItem::Port::Input;
+    if (m_currentBlockId >= 0 && edge == Edge::Right) {
+      // In subdiagrams, right-frame endings without interface stub are tunneled at target.
+      to.tunneled = true;
+    }
     m_dragArrow->setTo(to);
-    markSubdiagramOriginTunnel(m_dragArrow);
     m_dragArrow->finalize();
     m_dragArrow = nullptr;
     m_dragFromBlock.clear();
@@ -833,8 +833,12 @@ void DiagramScene::updateCallMechanismLabels() {
 
 void DiagramScene::purgeBrokenCallMechanisms() {
   QSet<BlockItem*> blocks;
+  QHash<int, BlockItem*> blockById;
   for (QGraphicsItem* it : items()) {
-    if (auto* b = qgraphicsitem_cast<BlockItem*>(it)) blocks.insert(b);
+    if (auto* b = qgraphicsitem_cast<BlockItem*>(it)) {
+      blocks.insert(b);
+      blockById.insert(b->id(), b);
+    }
   }
   QVector<ArrowItem*> toRemove;
   for (QGraphicsItem* it : items()) {
@@ -845,6 +849,7 @@ void DiagramScene::purgeBrokenCallMechanisms() {
       bool ok = true;
       if (from.block && !blocks.contains(from.block)) ok = false;
       if (to.block && !blocks.contains(to.block)) ok = false;
+      if (!blockById.contains(a->callRefId())) ok = false; // referenced block was deleted
       if (!ok) toRemove.push_back(a);
     }
   }
@@ -857,6 +862,12 @@ void DiagramScene::purgeBrokenCallMechanisms() {
 void DiagramScene::undo() {
   if (m_historyIndex <= 0) return;
   m_historyIndex -= 1;
+  restoreSnapshot(m_history[m_historyIndex], false);
+}
+
+void DiagramScene::redo() {
+  if (m_historyIndex + 1 >= m_history.size()) return;
+  m_historyIndex += 1;
   restoreSnapshot(m_history[m_historyIndex], false);
 }
 
@@ -991,14 +1002,7 @@ bool DiagramScene::goDownIntoBlock(BlockItem* b) {
     }
     child.arrows = std::move(preserved);
   } else {
-    QString state = m_meta.value("state").toString();
-    if (state.isEmpty()) {
-      if (m_meta.value("publication", false).toBool()) state = "publication";
-      else if (m_meta.value("recommended", false).toBool()) state = "recommended";
-      else if (m_meta.value("draft", false).toBool()) state = "draft";
-      else state = "working";
-    }
-    child.state = state;
+    child.state = QStringLiteral("working");
     child.hasState = true;
   }
 
@@ -1138,9 +1142,25 @@ void DiagramScene::mousePressEvent(QGraphicsSceneMouseEvent* e) {
   }
 
   if (e->button() == Qt::LeftButton) {
+    const auto itemsUnder = items(e->scenePos());
     if (e->modifiers().testFlag(Qt::ControlModifier)) {
       if (tryBranchAtArrow(e->scenePos())) {
         e->accept();
+        return;
+      }
+    }
+    if (e->modifiers().testFlag(Qt::ShiftModifier)) {
+      for (QGraphicsItem* it : itemsUnder) {
+        auto* j = qgraphicsitem_cast<JunctionItem*>(it);
+        if (!j || !j->hitTest(e->scenePos(), 8.0)) continue;
+        if (!j->isSelected()) {
+          clearSelection();
+          j->setSelected(true);
+        }
+        m_pressPositions.clear();
+        m_pressPositions.insert(j, j->pos());
+        m_itemDragActive = true;
+        QGraphicsScene::mousePressEvent(e);
         return;
       }
     }
@@ -1249,6 +1269,11 @@ void DiagramScene::keyPressEvent(QKeyEvent* e) {
     e->accept();
     return;
   }
+  if (e->matches(QKeySequence::Redo)) {
+    redo();
+    e->accept();
+    return;
+  }
   if ((e->key() == Qt::Key_Down || e->key() == Qt::Key_PageDown) && e->modifiers().testFlag(Qt::ControlModifier)) {
     if (goDownIntoSelected()) {
       e->accept();
@@ -1345,6 +1370,44 @@ void DiagramScene::deleteSelection() {
         (f.junction && toDelete.contains(f.junction)) ||
         (t.junction && toDelete.contains(t.junction))) {
       toDelete.insert(arrow);
+    }
+  }
+
+  // If deleting a pre-branch arrow (ending at junction), delete all downstream branches too.
+  QVector<ArrowItem*> selectedArrows;
+  for (QGraphicsItem* it : toDelete) {
+    if (auto* a = qgraphicsitem_cast<ArrowItem*>(it)) selectedArrows.push_back(a);
+  }
+  QSet<JunctionItem*> branchStarts;
+  for (ArrowItem* a : selectedArrows) {
+    if (!a) continue;
+    const auto t = a->to();
+    if (t.junction) branchStarts.insert(t.junction);
+  }
+  if (!branchStarts.isEmpty()) {
+    QSet<JunctionItem*> visitedJunctions = branchStarts;
+    QVector<JunctionItem*> queue(branchStarts.begin(), branchStarts.end());
+    int qi = 0;
+    while (qi < queue.size()) {
+      JunctionItem* j = queue[qi++];
+      if (!j) continue;
+      for (QGraphicsItem* it : items()) {
+        auto* a = qgraphicsitem_cast<ArrowItem*>(it);
+        if (!a) continue;
+        const auto f = a->from();
+        const auto t = a->to();
+        // downstream from branching junction
+        if (f.junction == j) {
+          toDelete.insert(a);
+          if (t.junction && !visitedJunctions.contains(t.junction)) {
+            visitedJunctions.insert(t.junction);
+            queue.push_back(t.junction);
+          }
+        }
+      }
+    }
+    for (JunctionItem* j : visitedJunctions) {
+      toDelete.insert(j);
     }
   }
 

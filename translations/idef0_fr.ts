@@ -256,6 +256,10 @@
         <translation>Exporter en PDF…</translation>
     </message>
     <message>
+        <source>Export to Markdown…</source>
+        <translation>Exporter en Markdown…</translation>
+    </message>
+    <message>
         <source>&amp;Edit</source>
         <translation>&amp;Édition</translation>
     </message>
@@ -364,6 +368,14 @@
         <translation>Exporter en PDF</translation>
     </message>
     <message>
+        <source>Export to Markdown</source>
+        <translation>Exporter en Markdown</translation>
+    </message>
+    <message>
+        <source>Markdown (*.md)</source>
+        <translation>Markdown (*.md)</translation>
+    </message>
+    <message>
         <source>Current diagram</source>
         <translation>Diagramme actuel</translation>
     </message>
@@ -458,6 +470,10 @@
     <message>
         <source>Currency:</source>
         <translation>Devise :</translation>
+    </message>
+    <message>
+        <source>person-hours</source>
+        <translation>heures-personne</translation>
     </message>
     <message>
         <source>Symbol placement:</source>
@@ -560,8 +576,155 @@
         <translation>Sans titre</translation>
     </message>
     <message>
-        <source> — IDEF0 editor</source>
-        <translation> — éditeur IDEF0</translation>
+        <source> — erlu IDEF0 editor</source>
+        <translation> — erlu éditeur IDEF0</translation>
+    </message>
+    <message>
+        <source>&amp;Plugins</source>
+        <translation>&amp;Plugins</translation>
+    </message>
+    <message>
+        <source>&amp;Tools</source>
+        <translation>&amp;Outils</translation>
+    </message>
+    <message>
+        <source>Validation</source>
+        <translation>Validation</translation>
+    </message>
+    <message>
+        <source>Calculate Prices</source>
+        <translation>Calculer les coûts</translation>
+    </message>
+    <message>
+        <source>Use a light theme regardless of the document theme</source>
+        <translation>Utiliser un thème clair indépendamment du thème du document</translation>
+    </message>
+    <message>
+        <source>Node tree</source>
+        <translation>Arborescence</translation>
+    </message>
+    <message>
+        <source>Node tree…</source>
+        <translation>Arborescence…</translation>
+    </message>
+    <message>
+        <source>Model</source>
+        <translation>Modèle</translation>
+    </message>
+    <message>
+        <source>There are several blocks in the context (root) diagram (there should be only one).</source>
+        <translation>Le diagramme de contexte (racine) contient plusieurs blocs (il ne doit y en avoir qu&apos;un).</translation>
+    </message>
+    <message>
+        <source>The decomposition diagram (%1) contains fewer than 3 blocks (there should be 3–8).</source>
+        <translation>Le diagramme de décomposition (%1) contient moins de 3 blocs (il doit y en avoir 3–8).</translation>
+    </message>
+    <message>
+        <source>The decomposition diagram (%1) contains more than 8 blocks (there should be 3–8).</source>
+        <translation>Le diagramme de décomposition (%1) contient plus de 8 blocs (il doit y en avoir 3–8).</translation>
+    </message>
+    <message>
+        <source>The decomposition of block (%1) is incomplete; there are hanging white connector circles.</source>
+        <translation>La décomposition du bloc (%1) est incomplète ; il existe des connecteurs blancs en suspens.</translation>
+    </message>
+    <message>
+        <source>The mechanism of diagram %1 acts as an input for block %2.</source>
+        <translation>Le mécanisme du diagramme %1 agit comme une entrée pour le bloc %2.</translation>
+    </message>
+    <message>
+        <source>The mechanism of diagram %1 acts as a control for block %2.</source>
+        <translation>Le mécanisme du diagramme %1 agit comme un contrôle pour le bloc %2.</translation>
+    </message>
+    <message>
+        <source>The control of diagram %1 acts as a mechanism for block %2.</source>
+        <translation>Le contrôle du diagramme %1 agit comme un mécanisme pour le bloc %2.</translation>
+    </message>
+    <message>
+        <source>The input of diagram %1 acts as a mechanism for block %2.</source>
+        <translation>L&apos;entrée du diagramme %1 agit comme un mécanisme pour le bloc %2.</translation>
+    </message>
+    <message>
+        <source>The output of block %1 acts as a mechanism for block %2.</source>
+        <translation>La sortie du bloc %1 agit comme un mécanisme pour le bloc %2.</translation>
+    </message>
+    <message>
+        <source>The block name should reflect what it does. Do not leave block %1 with a default name.</source>
+        <translation>Le nom du bloc doit refléter ce qu&apos;il fait. Ne laissez pas le bloc %1 avec un nom par défaut.</translation>
+    </message>
+    <message>
+        <source>The block name should reflect what it does. Do not leave block %1 with an empty name.</source>
+        <translation>Le nom du bloc doit refléter ce qu&apos;il fait. Ne laissez pas le bloc %1 avec un nom vide.</translation>
+    </message>
+    <message>
+        <source>Each block must have at least one input or control: %1.</source>
+        <translation>Chaque bloc doit avoir au moins une entrée ou un contrôle : %1.</translation>
+    </message>
+    <message>
+        <source>Each block must have at least one output: %1.</source>
+        <translation>Chaque bloc doit avoir au moins une sortie : %1.</translation>
+    </message>
+    <message>
+        <source>Input and output names are identical (%1) in process %2.</source>
+        <translation>Les noms d&apos;entrée et de sortie sont identiques (%1) dans le processus %2.</translation>
+    </message>
+    <message>
+        <source>Block %1 is a black box (all connected endpoints are tunneled).</source>
+        <translation>Le bloc %1 est une « boîte noire » (toutes les extrémités connectées sont tunnelisées).</translation>
+    </message>
+    <message>
+        <source>Block %1 is not related to other blocks in decomposition %2.</source>
+        <translation>Le bloc %1 n&apos;est pas lié aux autres blocs de la décomposition %2.</translation>
+    </message>
+    <message>
+        <source>The same arrow enters the same block several times in diagram %1 (%2).</source>
+        <translation>La même flèche entre plusieurs fois dans le même bloc sur le diagramme %1 (%2).</translation>
+    </message>
+    <message>
+        <source>The total cost of process %1 is lower than the total cost of its subprocesses. Use Tools &gt;&gt; Calculate Prices.</source>
+        <translation>Le coût total du processus %1 est inférieur au coût total de ses sous-processus. Utilisez Outils &gt;&gt; Calculer les coûts.</translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Erreurs :</translation>
+    </message>
+    <message>
+        <source>None.</source>
+        <translation>Aucun.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>aucun</translation>
+    </message>
+    <message>
+        <source>Warnings:</source>
+        <translation>Avertissements :</translation>
+    </message>
+    <message>
+        <source>Failed to apply calculated prices.</source>
+        <translation>Impossible d&apos;appliquer les coûts calculés.</translation>
+    </message>
+    <message>
+        <source>Updated prices for %1 block(s).</source>
+        <translation>Coûts mis à jour pour %1 bloc(s).</translation>
+    </message>
+    <message>
+        <source>Call mechanism already exists for this block or selection is invalid.</source>
+        <translation>Un Call Mechanism existe déjà pour ce bloc, ou la sélection est invalide.</translation>
+    </message>
+</context>
+<context>
+    <name>ColorsPlugin</name>
+    <message>
+        <source>Select item color</source>
+        <translation>Sélectionner la couleur de l&apos;élément</translation>
+    </message>
+    <message>
+        <source>Set item color…</source>
+        <translation>Définir la couleur de l&apos;élément…</translation>
+    </message>
+    <message>
+        <source>Clear item colors</source>
+        <translation>Effacer les couleurs des éléments</translation>
     </message>
 </context>
 </TS>

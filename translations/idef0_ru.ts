@@ -256,6 +256,10 @@
         <translation>Экспорт в PDF…</translation>
     </message>
     <message>
+        <source>Export to Markdown…</source>
+        <translation>Экспорт в Markdown…</translation>
+    </message>
+    <message>
         <source>&amp;Edit</source>
         <translation>&amp;Правка</translation>
     </message>
@@ -368,6 +372,14 @@
         <translation>Экспорт в PDF</translation>
     </message>
     <message>
+        <source>Export to Markdown</source>
+        <translation>Экспорт в Markdown</translation>
+    </message>
+    <message>
+        <source>Markdown (*.md)</source>
+        <translation>Markdown (*.md)</translation>
+    </message>
+    <message>
         <source>Current diagram</source>
         <translation>Текущая диаграмма</translation>
     </message>
@@ -462,6 +474,10 @@
     <message>
         <source>Currency:</source>
         <translation>Валюта:</translation>
+    </message>
+    <message>
+        <source>person-hours</source>
+        <translation>человеко-часы</translation>
     </message>
     <message>
         <source>Symbol placement:</source>
@@ -564,8 +580,151 @@
         <translation>Без имени</translation>
     </message>
     <message>
-        <source> — IDEF0 editor</source>
-        <translation> — редактор IDEF0</translation>
+        <source> — erlu IDEF0 editor</source>
+        <translation> — erlu редактор IDEF0</translation>
+    </message>
+    <message>
+        <source>&amp;Tools</source>
+        <translation>&amp;Инструменты</translation>
+    </message>
+    <message>
+        <source>Validation</source>
+        <translation>Проверка</translation>
+    </message>
+    <message>
+        <source>Calculate Prices</source>
+        <translation>Рассчитать стоимости</translation>
+    </message>
+    <message>
+        <source>Use a light theme regardless of the document theme</source>
+        <translation>Использовать светлую тему независимо от темы документа</translation>
+    </message>
+    <message>
+        <source>Node tree</source>
+        <translation>Дерево узлов</translation>
+    </message>
+    <message>
+        <source>Node tree…</source>
+        <translation>Дерево узлов…</translation>
+    </message>
+    <message>
+        <source>Model</source>
+        <translation>Модель</translation>
+    </message>
+    <message>
+        <source>There are several blocks in the context (root) diagram (there should be only one).</source>
+        <translation>В контекстной (корневой) диаграмме несколько блоков (должен быть только один).</translation>
+    </message>
+    <message>
+        <source>The decomposition diagram (%1) contains fewer than 3 blocks (there should be 3–8).</source>
+        <translation>Диаграмма декомпозиции (%1) содержит менее 3 блоков (должно быть 3–8).</translation>
+    </message>
+    <message>
+        <source>The decomposition diagram (%1) contains more than 8 blocks (there should be 3–8).</source>
+        <translation>Диаграмма декомпозиции (%1) содержит более 8 блоков (должно быть 3–8).</translation>
+    </message>
+    <message>
+        <source>The decomposition of block (%1) is incomplete; there are hanging white connector circles.</source>
+        <translation>Декомпозиция блока (%1) неполная: есть висящие белые кружки-коннекторы.</translation>
+    </message>
+    <message>
+        <source>The mechanism of diagram %1 acts as an input for block %2.</source>
+        <translation>Механизм диаграммы %1 выступает входом для блока %2.</translation>
+    </message>
+    <message>
+        <source>The mechanism of diagram %1 acts as a control for block %2.</source>
+        <translation>Механизм диаграммы %1 выступает управлением для блока %2.</translation>
+    </message>
+    <message>
+        <source>The control of diagram %1 acts as a mechanism for block %2.</source>
+        <translation>Управление диаграммы %1 выступает механизмом для блока %2.</translation>
+    </message>
+    <message>
+        <source>The input of diagram %1 acts as a mechanism for block %2.</source>
+        <translation>Вход диаграммы %1 выступает механизмом для блока %2.</translation>
+    </message>
+    <message>
+        <source>The output of block %1 acts as a mechanism for block %2.</source>
+        <translation>Выход блока %1 выступает механизмом для блока %2.</translation>
+    </message>
+    <message>
+        <source>The block name should reflect what it does. Do not leave block %1 with a default name.</source>
+        <translation>Имя блока должно отражать его действие. Не оставляйте блоку %1 имя по умолчанию.</translation>
+    </message>
+    <message>
+        <source>The block name should reflect what it does. Do not leave block %1 with an empty name.</source>
+        <translation>Имя блока должно отражать его действие. Не оставляйте блок %1 без имени.</translation>
+    </message>
+    <message>
+        <source>Each block must have at least one input or control: %1.</source>
+        <translation>У каждого блока должен быть хотя бы один вход или контроль: %1.</translation>
+    </message>
+    <message>
+        <source>Each block must have at least one output: %1.</source>
+        <translation>У каждого блока должен быть хотя бы один выход: %1.</translation>
+    </message>
+    <message>
+        <source>Input and output names are identical (%1) in process %2.</source>
+        <translation>Имена входа и выхода совпадают (%1) в процессе %2.</translation>
+    </message>
+    <message>
+        <source>Block %1 is a black box (all connected endpoints are tunneled).</source>
+        <translation>Блок %1 является «черным ящиком» (все подключенные концы затуннелированы).</translation>
+    </message>
+    <message>
+        <source>Block %1 is not related to other blocks in decomposition %2.</source>
+        <translation>Блок %1 не связан с другими блоками в декомпозиции %2.</translation>
+    </message>
+    <message>
+        <source>The same arrow enters the same block several times in diagram %1 (%2).</source>
+        <translation>Одна и та же стрелка входит в один и тот же блок несколько раз на диаграмме %1 (%2).</translation>
+    </message>
+    <message>
+        <source>The total cost of process %1 is lower than the total cost of its subprocesses. Use Tools &gt;&gt; Calculate Prices.</source>
+        <translation>Общая стоимость процесса %1 ниже суммарной стоимости его подпроцессов. Используйте Инструменты &gt;&gt; Рассчитать стоимости.</translation>
+    </message>
+    <message>
+        <source>Errors:</source>
+        <translation>Ошибки:</translation>
+    </message>
+    <message>
+        <source>None.</source>
+        <translation>Нет.</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>нет</translation>
+    </message>
+    <message>
+        <source>Warnings:</source>
+        <translation>Предупреждения:</translation>
+    </message>
+    <message>
+        <source>Failed to apply calculated prices.</source>
+        <translation>Не удалось применить рассчитанные стоимости.</translation>
+    </message>
+    <message>
+        <source>Updated prices for %1 block(s).</source>
+        <translation>Обновлены стоимости для %1 блока(ов).</translation>
+    </message>
+    <message>
+        <source>Call mechanism already exists for this block or selection is invalid.</source>
+        <translation>Call Mechanism уже существует для этого блока, либо выбор недопустим.</translation>
+    </message>
+</context>
+<context>
+    <name>ColorsPlugin</name>
+    <message>
+        <source>Select item color</source>
+        <translation>Выбрать цвет элемента</translation>
+    </message>
+    <message>
+        <source>Set item color…</source>
+        <translation>Установить цвет элемента…</translation>
+    </message>
+    <message>
+        <source>Clear item colors</source>
+        <translation>Очистить цвета элементов</translation>
     </message>
 </context>
 </TS>

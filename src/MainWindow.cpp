@@ -8,6 +8,7 @@
 #include <QDialog>
 #include <QTabWidget>
 #include <QTreeWidget>
+#include <QTextEdit>
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QLineEdit>
@@ -51,6 +52,7 @@
 
 static const char* kDiagramFileFilter = QT_TR_NOOP("IDEF0 Diagram (*.idef0);;JSON Diagram (*.json)");
 static const char* kPdfFileFilter = QT_TR_NOOP("PDF (*.pdf)");
+static const char* kMarkdownFileFilter = QT_TR_NOOP("Markdown (*.md)");
 
 static QPageSize::PageSizeId pageSizeFromMeta(const QVariantMap& meta) {
   const QString size = meta.value("pageSize", "A4").toString();
@@ -76,6 +78,13 @@ static QVariantMap stripPerDiagramState(QVariantMap meta) {
   meta.remove("recommended");
   meta.remove("publication");
   return meta;
+}
+
+static QString normalizeCurrencyName(const QString& currency) {
+  if (currency == QCoreApplication::translate("MainWindow", "man-hours") || currency == QStringLiteral("man-hours")) {
+    return QCoreApplication::translate("MainWindow", "person-hours");
+  }
+  return currency;
 }
 
 static QVariantMap mergeWithDiagramState(QVariantMap globalMeta, const QVariantMap& diagramMeta) {
@@ -132,6 +141,7 @@ void MainWindow::setupActions() {
   auto* actSave = new QAction(tr("Save"), this);
   auto* actSaveAs = new QAction(tr("Save As…"), this);
   auto* actExportPdf = new QAction(tr("Export to PDF…"), this);
+  auto* actExportMarkdown = new QAction(tr("Export to Markdown…"), this);
   actNew->setShortcut(QKeySequence::New);
   actOpen->setShortcut(QKeySequence::Open);
   actSave->setShortcut(QKeySequence::Save);
@@ -143,12 +153,18 @@ void MainWindow::setupActions() {
   fileMenu->addAction(actSaveAs);
   fileMenu->addSeparator();
   fileMenu->addAction(actExportPdf);
+  fileMenu->addAction(actExportMarkdown);
 
   auto* editMenu = menuBar()->addMenu(tr("&Edit"));
+  auto* toolsMenu = menuBar()->addMenu(tr("&Tools"));
   auto* actSwapNums = new QAction(tr("Swap numbers…"), this);
   auto* actCallMech = new QAction(tr("Call Mechanism add"), this);
+  auto* actValidation = new QAction(tr("Validation"), this);
+  auto* actCalcPrices = new QAction(tr("Calculate Prices"), this);
   editMenu->addAction(actSwapNums);
   editMenu->addAction(actCallMech);
+  toolsMenu->addAction(actValidation);
+  toolsMenu->addAction(actCalcPrices);
 
   auto* viewMenu = menuBar()->addMenu(tr("&View"));
   auto* actFit = new QAction(tr("Fit"), this);
@@ -177,7 +193,7 @@ void MainWindow::setupActions() {
   connect(actNodeTree, &QAction::triggered, this, [this]{
     showNodeTreeDialog();
   });
-  viewMenu->addAction(actNodeTree);
+  toolsMenu->addAction(actNodeTree);
 
   m_actDarkMode = new QAction(tr("Dark mode"), this);
   m_actDarkMode->setCheckable(true);
@@ -309,6 +325,9 @@ void MainWindow::setupActions() {
     if (dlg.exec() != QDialog::Accepted) return;
     exportPdf(scope->currentIndex() == 1, pageNumbers->isChecked(), forceLight->isChecked());
   });
+  connect(actExportMarkdown, &QAction::triggered, this, [this]{
+    exportMarkdownExplanation();
+  });
 
   connect(actCallMech, &QAction::triggered, this, [this]{
     if (!m_scene) return;
@@ -358,6 +377,13 @@ void MainWindow::setupActions() {
       return;
     }
     statusBar()->showMessage(tr("Click bottom frame to place call mechanism arrow. Esc to cancel."), 5000);
+  });
+
+  connect(actValidation, &QAction::triggered, this, [this]{
+    runValidation();
+  });
+  connect(actCalcPrices, &QAction::triggered, this, [this]{
+    calculatePrices();
   });
 
   m_pluginManager = new PluginManager(this, pluginsMenu, this);
@@ -445,7 +471,8 @@ bool MainWindow::showWelcome() {
   currency->setEditable(true);
   currency->addItem(curSym);
   if (curSym != "$") currency->addItem("$");
-  const QString existingCur = m_welcomeState.value("currency").toString();
+  currency->addItem(tr("person-hours"));
+  const QString existingCur = normalizeCurrencyName(m_welcomeState.value("currency").toString());
   if (!existingCur.isEmpty()) {
     currency->setCurrentText(existingCur);
   } else {
@@ -454,12 +481,18 @@ bool MainWindow::showWelcome() {
 
   auto* placement = new QComboBox(units);
   placement->addItems({"1?", "?1", "1 ?", "? 1"});
+  const QString personHours = tr("person-hours");
   const QString placementVal = m_welcomeState.value("currencyPlacement").toString();
   if (!placementVal.isEmpty() && placement->findText(placementVal) >= 0) {
     placement->setCurrentText(placementVal);
   } else {
-    placement->setCurrentText(symbolPlacementDefault(loc, currency->currentText()));
+    placement->setCurrentText(currency->currentText() == personHours
+                                ? QStringLiteral("1 ?")
+                                : symbolPlacementDefault(loc, currency->currentText()));
   }
+  connect(currency, &QComboBox::currentTextChanged, this, [placement, personHours](const QString& cur){
+    if (cur == personHours) placement->setCurrentText(QStringLiteral("1 ?"));
+  });
 
   auto* timeUnit = new QComboBox(units);
   const QStringList unitsList = {tr("Seconds"), tr("Minutes"), tr("Hours"), tr("Days"), tr("Weeks"), tr("Months"), tr("Years")};
@@ -517,7 +550,7 @@ bool MainWindow::showWelcome() {
   m_welcomeState["title"] = title->text();
   m_welcomeState["organization"] = organization->text();
   m_welcomeState["initials"] = initials->text();
-  m_welcomeState["currency"] = currency->currentText();
+  m_welcomeState["currency"] = normalizeCurrencyName(currency->currentText());
   m_welcomeState["currencyPlacement"] = placement->currentText();
   m_welcomeState["timeUnit"] = timeUnit->currentText();
   m_welcomeState["pageSize"] = sizeCombo->currentText();
@@ -549,6 +582,13 @@ void MainWindow::newDiagram() {
   m_scene->createBlockAt(bounds.center());
   m_currentFile.clear();
   markDirty(false);
+  // Keep main window visible and focused after closing modal creation dialogs.
+  QTimer::singleShot(0, this, [this]{
+    setWindowState(windowState() & ~Qt::WindowMinimized);
+    showNormal();
+    raise();
+    activateWindow();
+  });
 }
 
 bool MainWindow::promptStartup() {
@@ -571,6 +611,12 @@ bool MainWindow::promptStartup() {
   m_scene->createBlockAt(bounds.center());
   m_currentFile.clear();
   markDirty(false);
+  QTimer::singleShot(0, this, [this]{
+    setWindowState(windowState() & ~Qt::WindowMinimized);
+    showNormal();
+    raise();
+    activateWindow();
+  });
   return true;
 }
 
@@ -595,6 +641,7 @@ bool MainWindow::loadDiagramFromPath(const QString& path) {
   }
   if (root.contains("meta")) {
     m_welcomeState = stripPerDiagramState(root.value("meta").toMap());
+    m_welcomeState["currency"] = normalizeCurrencyName(m_welcomeState.value("currency").toString());
   }
   if (m_actDarkMode && m_actFollowSystemTheme) {
     const QSignalBlocker b2(m_actDarkMode);
@@ -713,6 +760,137 @@ bool MainWindow::exportPdf(bool allDiagrams, bool numberPages, bool forceLightTh
 
   m_scene->applyMeta(originalMeta);
   painter.end();
+  return true;
+}
+
+bool MainWindow::exportMarkdownExplanation() {
+  if (!m_scene) return false;
+  QString path = QFileDialog::getSaveFileName(this, tr("Export to Markdown"), QString(), tr(kMarkdownFileFilter));
+  if (path.isEmpty()) return false;
+  if (QFileInfo(path).suffix().isEmpty()) path += ".md";
+
+  const QVariantMap exported = m_scene->exportToVariant();
+  const QVariantMap rootDiagram = exported.value("diagram").toMap();
+  const QVariantMap children = exported.value("children").toMap();
+
+  auto sortedBlocks = [](const QVariantMap& diagram) {
+    QVector<QVariantMap> out;
+    const QVariantList blocks = diagram.value("blocks").toList();
+    out.reserve(blocks.size());
+    for (const QVariant& vb : blocks) out.push_back(vb.toMap());
+    std::sort(out.begin(), out.end(), [](const QVariantMap& a, const QVariantMap& b) {
+      const QString na = a.value("number").toString();
+      const QString nb = b.value("number").toString();
+      if (na == nb) return a.value("id", -1).toInt() < b.value("id", -1).toInt();
+      return na.localeAwareCompare(nb) < 0;
+    });
+    return out;
+  };
+
+  auto addUniqueSorted = [](QStringList& list, const QString& value) {
+    const QString v = value.trimmed();
+    if (v.isEmpty() || list.contains(v)) return;
+    list.push_back(v);
+  };
+
+  auto joinOrDash = [this](QStringList list) {
+    if (list.isEmpty()) return tr("none");
+    std::sort(list.begin(), list.end(), [](const QString& a, const QString& b) {
+      return a.localeAwareCompare(b) < 0;
+    });
+    return list.join(", ");
+  };
+
+  struct Ports {
+    QStringList inputs;
+    QStringList outputs;
+    QStringList mechanisms;
+    QStringList controls;
+  };
+  auto collectPorts = [&](const QVariantMap& diagram) {
+    Ports p;
+    const QVariantList arrows = diagram.value("arrows").toList();
+    for (const QVariant& va : arrows) {
+      const QVariantMap a = va.toMap();
+      const QString label = a.value("label").toString().trimmed();
+      if (label.isEmpty()) continue;
+      const QVariantMap from = a.value("from").toMap();
+      const QVariantMap to = a.value("to").toMap();
+      const int fk = from.value("kind").toInt(0);
+      const int fp = from.value("port").toInt(0);
+      const int tk = to.value("kind").toInt(0);
+      const int tp = to.value("port").toInt(0);
+      if (fk == 3) {
+        if (fp == 0) addUniqueSorted(p.inputs, label);
+        if (fp == 1) addUniqueSorted(p.controls, label);
+        if (fp == 2) addUniqueSorted(p.outputs, label);
+        if (fp == 3) addUniqueSorted(p.mechanisms, label);
+      }
+      if (tk == 3) {
+        if (tp == 0) addUniqueSorted(p.inputs, label);
+        if (tp == 1) addUniqueSorted(p.controls, label);
+        if (tp == 2) addUniqueSorted(p.outputs, label);
+        if (tp == 3) addUniqueSorted(p.mechanisms, label);
+      }
+    }
+    return p;
+  };
+
+  auto stars = [](int count) { return QString(count, '*'); };
+  auto safeName = [this](const QString& s) {
+    const QString trimmed = s.trimmed();
+    return trimmed.isEmpty() ? tr("Untitled") : trimmed;
+  };
+
+  QString md;
+  std::function<void(const QVariantMap&, const QString&, const QString&, int, const QString&)> emitNode;
+  emitNode = [&](const QVariantMap& diagram, const QString& key, const QString& number, int depth, const QString& title) {
+    const Ports p = collectPorts(diagram);
+    md += QStringLiteral("%1 %2: %3\n").arg(stars(depth), number, safeName(title));
+    md += QStringLiteral("%1 Inputs: %2\n").arg(stars(depth + 1), joinOrDash(p.inputs));
+    md += QStringLiteral("%1 Outputs: %2\n").arg(stars(depth + 1), joinOrDash(p.outputs));
+    md += QStringLiteral("%1 Mechanisms: %2\n").arg(stars(depth + 1), joinOrDash(p.mechanisms));
+    md += QStringLiteral("%1 Controls: %2\n").arg(stars(depth + 1), joinOrDash(p.controls));
+    md += QStringLiteral("%1 Subprocesses:\n").arg(stars(depth + 1));
+
+    const QVector<QVariantMap> blocks = sortedBlocks(diagram);
+    if (blocks.isEmpty()) {
+      md += QStringLiteral("%1 %2\n").arg(stars(depth + 2), tr("none"));
+      return;
+    }
+
+    for (const QVariantMap& b : blocks) {
+      const int id = b.value("id", -1).toInt();
+      const QString childKey = key.isEmpty() ? QString::number(id) : (key + "/" + QString::number(id));
+      const QString childNumber = b.value("number").toString().trimmed().isEmpty()
+        ? QStringLiteral("A?")
+        : b.value("number").toString().trimmed();
+      const QString childTitle = safeName(b.value("title").toString());
+      if (id >= 0 && children.contains(childKey)) {
+        emitNode(children.value(childKey).toMap(), childKey, childNumber, depth + 2, childTitle);
+      } else {
+        md += QStringLiteral("%1 %2: %3\n").arg(stars(depth + 2), childNumber, childTitle);
+      }
+    }
+  };
+
+  QString rootTitle = m_welcomeState.value("title").toString();
+  for (const QVariantMap& b : sortedBlocks(rootDiagram)) {
+    const QString n = b.value("number").toString();
+    if (n.compare(QStringLiteral("A0"), Qt::CaseInsensitive) == 0) {
+      rootTitle = b.value("title").toString();
+      break;
+    }
+  }
+  emitNode(rootDiagram, QString(), QStringLiteral("A0"), 1, rootTitle);
+
+  QFile f(path);
+  if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+    QMessageBox::warning(this, tr("Export failed"), tr("Could not open file for writing."));
+    return false;
+  }
+  f.write(md.toUtf8());
+  f.close();
   return true;
 }
 
@@ -866,6 +1044,316 @@ void MainWindow::showNodeTreeDialog() {
   dlg->deleteLater();
 }
 
+void MainWindow::runValidation() {
+  if (!m_scene) return;
+
+  const QVariantMap exported = m_scene->exportToVariant();
+  const QVariantMap rootDiagram = exported.value("diagram").toMap();
+  const QVariantMap children = exported.value("children").toMap();
+
+  struct DiagCtx {
+    QString key;         // "" for root, "1/2/3" for descendants
+    QString node;        // A0, A1, A1.2, ...
+    QVariantMap diagram; // variant map with blocks/arrows
+  };
+
+  QHash<QString, DiagCtx> diags;
+  std::function<void(const QString&, const QString&, const QVariantMap&)> collect;
+  collect = [&](const QString& key, const QString& node, const QVariantMap& diagram) {
+    diags.insert(key, DiagCtx{key, node, diagram});
+    const QVariantList blocks = diagram.value("blocks").toList();
+    for (const QVariant& vb : blocks) {
+      const QVariantMap b = vb.toMap();
+      const int id = b.value("id", -1).toInt();
+      if (id < 0) continue;
+      const QString childKey = key.isEmpty() ? QString::number(id) : key + "/" + QString::number(id);
+      if (!children.contains(childKey)) continue;
+      const QString childNode = b.value("number").toString().isEmpty() ? node : b.value("number").toString();
+      collect(childKey, childNode, children.value(childKey).toMap());
+    }
+  };
+  collect(QString(), QStringLiteral("A0"), rootDiagram);
+
+  auto epKind = [](const QVariantMap& ep) { return ep.value("kind").toInt(0); }; // 1=Block, 2=Junction, 3=Scene
+  auto epId = [](const QVariantMap& ep) { return ep.value("id", -1).toInt(); };
+  auto epPort = [](const QVariantMap& ep) { return ep.value("port", 0).toInt(); }; // 0=I,1=C,2=O,3=M
+  auto epTun = [](const QVariantMap& ep) { return ep.value("tunneled").toBool(); };
+  auto blockLabel = [](const QVariantMap& b) {
+    const QString num = b.value("number").toString();
+    const QString title = b.value("title").toString();
+    if (num.isEmpty()) return title;
+    return title.isEmpty() ? num : QStringLiteral("%1 %2").arg(num, title);
+  };
+
+  QStringList errors;
+  QStringList warnings;
+
+  // rule 5
+  if (rootDiagram.value("blocks").toList().size() > 1) {
+    errors << tr("There are several blocks in the context (root) diagram (there should be only one).");
+  }
+
+  for (const DiagCtx& d : diags) {
+    const bool isRoot = d.key.isEmpty();
+    const QVariantList blocks = d.diagram.value("blocks").toList();
+    const QVariantList arrows = d.diagram.value("arrows").toList();
+
+    QHash<int, QVariantMap> blockById;
+    for (const QVariant& vb : blocks) {
+      const QVariantMap b = vb.toMap();
+      blockById.insert(b.value("id", -1).toInt(), b);
+    }
+
+    // rules 6,7 for non-root
+    if (!isRoot) {
+      if (blocks.size() < 3) {
+        errors << tr("The decomposition diagram (%1) contains fewer than 3 blocks (there should be 3–8).").arg(d.node);
+      } else if (blocks.size() > 8) {
+        errors << tr("The decomposition diagram (%1) contains more than 8 blocks (there should be 3–8).").arg(d.node);
+      }
+    }
+
+    // rule 8 hanging interface circles
+    if (!isRoot) {
+      bool hasHanging = false;
+      for (const QVariant& va : arrows) {
+        const QVariantMap a = va.toMap();
+        if (a.value("isInterface").toBool() &&
+            a.value("isInterfaceStub").toBool() &&
+            !a.value("interfaceEdge").toMap().value("tunneled").toBool()) {
+          hasHanging = true;
+          break;
+        }
+      }
+      if (hasHanging) {
+        errors << tr("The decomposition of block (%1) is incomplete; there are hanging white connector circles.").arg(d.node);
+      }
+    }
+
+    QHash<int, int> inIC;
+    QHash<int, int> outO;
+    QHash<int, QStringList> inByBlockLabel;
+    QHash<int, QStringList> outByBlockLabel;
+    QHash<QString, int> sameLabelEntries; // blockId:port:label
+    QHash<int, bool> hasOtherBlockLink;
+    QHash<int, bool> hasIncident;
+    QHash<int, bool> allIncidentTunneled;
+
+    for (auto it = blockById.cbegin(); it != blockById.cend(); ++it) {
+      hasOtherBlockLink[it.key()] = false;
+      hasIncident[it.key()] = false;
+      allIncidentTunneled[it.key()] = true;
+    }
+
+    for (const QVariant& va : arrows) {
+      const QVariantMap a = va.toMap();
+      const QVariantMap f = a.value("from").toMap();
+      const QVariantMap t = a.value("to").toMap();
+      const QString lbl = a.value("label").toString().trimmed();
+
+      const int fk = epKind(f), tk = epKind(t);
+      const int fid = epId(f), tid = epId(t);
+      const int fp = epPort(f), tp = epPort(t);
+
+      if (fk == 1 && blockById.contains(fid)) {
+        hasIncident[fid] = true;
+        allIncidentTunneled[fid] = allIncidentTunneled[fid] && epTun(f);
+      }
+      if (tk == 1 && blockById.contains(tid)) {
+        hasIncident[tid] = true;
+        allIncidentTunneled[tid] = allIncidentTunneled[tid] && epTun(t);
+      }
+
+      if (tk == 1 && blockById.contains(tid) && (tp == 0 || tp == 1)) {
+        inIC[tid] += 1;
+      }
+      if (fk == 1 && blockById.contains(fid) && fp == 2) {
+        outO[fid] += 1;
+      }
+
+      if (tk == 1 && blockById.contains(tid) && tp == 0 && !lbl.isEmpty()) {
+        inByBlockLabel[tid].push_back(lbl);
+      }
+      if (fk == 1 && blockById.contains(fid) && fp == 2 && !lbl.isEmpty()) {
+        outByBlockLabel[fid].push_back(lbl);
+      }
+
+      if (tk == 1 && blockById.contains(tid) && (tp == 0 || tp == 1 || tp == 2) && !lbl.isEmpty()) {
+        const QString key = QStringLiteral("%1:%2:%3").arg(tid).arg(tp).arg(lbl);
+        sameLabelEntries[key] += 1;
+      }
+
+      if (fk == 1 && tk == 1 && blockById.contains(fid) && blockById.contains(tid) && fid != tid) {
+        hasOtherBlockLink[fid] = true;
+        hasOtherBlockLink[tid] = true;
+      }
+
+      // warnings 1..4
+      if (!isRoot && fk == 3 && tk == 1) {
+        if (fp == 3 && tp == 0) warnings << tr("The mechanism of diagram %1 acts as an input for block %2.").arg(d.node, blockById.value(tid).value("number").toString());
+        if (fp == 3 && tp == 1) warnings << tr("The mechanism of diagram %1 acts as a control for block %2.").arg(d.node, blockById.value(tid).value("number").toString());
+        if (fp == 1 && tp == 3) warnings << tr("The control of diagram %1 acts as a mechanism for block %2.").arg(d.node, blockById.value(tid).value("number").toString());
+        if (fp == 0 && tp == 3) warnings << tr("The input of diagram %1 acts as a mechanism for block %2.").arg(d.node, blockById.value(tid).value("number").toString());
+      }
+
+      // warning 5
+      if (fk == 1 && tk == 1 && fp == 2 && tp == 3 && blockById.contains(fid) && blockById.contains(tid)) {
+        warnings << tr("The output of block %1 acts as a mechanism for block %2.")
+                    .arg(blockById.value(fid).value("number").toString(),
+                         blockById.value(tid).value("number").toString());
+      }
+    }
+
+    for (auto it = blockById.cbegin(); it != blockById.cend(); ++it) {
+      const int id = it.key();
+      const QVariantMap b = it.value();
+      const QString title = b.value("title").toString();
+      const QString titleTrim = title.trimmed();
+
+      // rules 1,2
+      if (title == tr("Function") || title == QStringLiteral("Function")) {
+        errors << tr("The block name should reflect what it does. Do not leave block %1 with a default name.").arg(blockLabel(b));
+      }
+      if (titleTrim.isEmpty()) {
+        errors << tr("The block name should reflect what it does. Do not leave block %1 with an empty name.").arg(blockLabel(b));
+      }
+
+      // rules 3,4
+      if (inIC.value(id, 0) == 0) {
+        errors << tr("Each block must have at least one input or control: %1.").arg(blockLabel(b));
+      }
+      if (outO.value(id, 0) == 0) {
+        errors << tr("Each block must have at least one output: %1.").arg(blockLabel(b));
+      }
+
+      // rule 11
+      QSet<QString> inNames, outNames;
+      for (const QString& s : inByBlockLabel.value(id)) inNames.insert(s.trimmed());
+      for (const QString& s : outByBlockLabel.value(id)) outNames.insert(s.trimmed());
+      for (const QString& s : inNames) {
+        if (!s.isEmpty() && outNames.contains(s)) {
+          errors << tr("Input and output names are identical (%1) in process %2.").arg(s, b.value("number").toString());
+        }
+      }
+
+      // warning 6
+      if (hasIncident.value(id, false) && allIncidentTunneled.value(id, false)) {
+        warnings << tr("Block %1 is a black box (all connected endpoints are tunneled).").arg(b.value("number").toString());
+      }
+
+      // warning 8
+      if (!isRoot && blocks.size() > 1 && !hasOtherBlockLink.value(id, false)) {
+        warnings << tr("Block %1 is not related to other blocks in decomposition %2.").arg(b.value("number").toString(), d.node);
+      }
+    }
+
+    // rule 10
+    for (auto it = sameLabelEntries.cbegin(); it != sameLabelEntries.cend(); ++it) {
+      if (it.value() > 1) {
+        errors << tr("The same arrow enters the same block several times in diagram %1 (%2).").arg(d.node, it.key());
+      }
+    }
+
+    // warning 7
+    for (const QVariant& vb : blocks) {
+      const QVariantMap b = vb.toMap();
+      if (!b.contains("price") || b.value("price").isNull()) continue;
+      const int id = b.value("id", -1).toInt();
+      if (id < 0) continue;
+      const QString childKey = d.key.isEmpty() ? QString::number(id) : d.key + "/" + QString::number(id);
+      if (!children.contains(childKey)) continue;
+      const QVariantList childBlocks = children.value(childKey).toMap().value("blocks").toList();
+      qreal sum = 0.0;
+      for (const QVariant& vcb : childBlocks) {
+        const QVariantMap cb = vcb.toMap();
+        if (cb.contains("price") && !cb.value("price").isNull()) sum += cb.value("price").toDouble();
+      }
+      const qreal parentPrice = b.value("price").toDouble();
+      if (sum > parentPrice + 1e-6) {
+        warnings << tr("The total cost of process %1 is lower than the total cost of its subprocesses. Use Tools >> Calculate Prices.")
+                    .arg(b.value("number").toString());
+      }
+    }
+  }
+
+  QString report;
+  report += tr("Errors:") + "\n";
+  if (errors.isEmpty()) report += tr("None.") + "\n";
+  else for (int i = 0; i < errors.size(); ++i) report += QString::number(i + 1) + ". " + errors[i] + "\n";
+  report += "\n" + tr("Warnings:") + "\n";
+  if (warnings.isEmpty()) report += tr("None.") + "\n";
+  else for (int i = 0; i < warnings.size(); ++i) report += QString::number(i + 1) + ". " + warnings[i] + "\n";
+
+  auto* dlg = new QDialog(this);
+  dlg->setWindowTitle(tr("Validation"));
+  auto* layout = new QVBoxLayout(dlg);
+  auto* txt = new QTextEdit(dlg);
+  txt->setReadOnly(true);
+  txt->setPlainText(report);
+  layout->addWidget(txt);
+  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+  connect(buttons, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+  connect(buttons, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+  layout->addWidget(buttons);
+  dlg->resize(860, 640);
+  dlg->exec();
+  dlg->deleteLater();
+}
+
+void MainWindow::calculatePrices() {
+  if (!m_scene) return;
+  QVariantMap exported = m_scene->exportToVariant();
+  QVariantMap rootDiagram = exported.value("diagram").toMap();
+  QVariantMap children = exported.value("children").toMap();
+
+  int updatedBlocks = 0;
+  std::function<void(const QString&, QVariantMap&)> recalc;
+  recalc = [&](const QString& key, QVariantMap& diagram) {
+    QVariantList blocks = diagram.value("blocks").toList();
+    for (int i = 0; i < blocks.size(); ++i) {
+      QVariantMap b = blocks[i].toMap();
+      const int id = b.value("id", -1).toInt();
+      if (id < 0) continue;
+      const QString childKey = key.isEmpty() ? QString::number(id) : key + "/" + QString::number(id);
+      if (!children.contains(childKey)) continue;
+      QVariantMap child = children.value(childKey).toMap();
+      recalc(childKey, child);
+      children[childKey] = child;
+      const QVariantList childBlocks = child.value("blocks").toList();
+      qreal sum = 0.0;
+      bool hasAny = false;
+      for (const QVariant& vcb : childBlocks) {
+        const QVariantMap cb = vcb.toMap();
+        if (cb.contains("price") && !cb.value("price").isNull()) {
+          sum += cb.value("price").toDouble();
+          hasAny = true;
+        }
+      }
+      if (!hasAny) continue;
+      const qreal oldPrice = b.contains("price") && !b.value("price").isNull() ? b.value("price").toDouble() : std::numeric_limits<qreal>::quiet_NaN();
+      if (std::isnan(oldPrice) || std::abs(oldPrice - sum) > 1e-6) {
+        b["price"] = sum;
+        blocks[i] = b;
+        updatedBlocks += 1;
+      }
+    }
+    diagram["blocks"] = blocks;
+  };
+
+  recalc(QString(), rootDiagram);
+  exported["diagram"] = rootDiagram;
+  exported["children"] = children;
+  exported["meta"] = stripPerDiagramState(m_welcomeState);
+
+  if (!m_scene->importFromVariant(exported)) {
+    QMessageBox::warning(this, tr("Calculate Prices"), tr("Failed to apply calculated prices."));
+    return;
+  }
+  m_scene->applyMeta(mergeWithDiagramState(m_welcomeState, m_scene->meta()));
+  markDirty(true);
+  QMessageBox::information(this, tr("Calculate Prices"), tr("Updated prices for %1 block(s).").arg(updatedBlocks));
+}
+
 void MainWindow::closeEvent(QCloseEvent* e) {
   if (!m_dirty) {
     e->accept();
@@ -973,5 +1461,5 @@ void MainWindow::markDirty(bool dirty) {
 void MainWindow::updateWindowTitle() {
   QString name = m_currentFile.isEmpty() ? tr("Untitled") : QFileInfo(m_currentFile).fileName();
   if (m_dirty) name += " *";
-  setWindowTitle(name + tr(" — IDEF0 editor"));
+  setWindowTitle(name + tr(" — erlu IDEF0 editor"));
 }

@@ -115,6 +115,7 @@ private:
   void pushSnapshot();
   void scheduleSnapshot();
   void undo();
+  void redo();
   void maybeSnapshotMovedItems();
   void resetHistory(const Snapshot& base);
   void ensureFrame();

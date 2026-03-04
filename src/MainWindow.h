@@ -41,6 +41,9 @@ private:
   bool promptStartup();
   bool loadDiagramFromPath(const QString& path);
   bool exportPdf(bool allDiagrams, bool numberPages, bool forceLightTheme);
+  bool exportMarkdownExplanation();
+  void runValidation();
+  void calculatePrices();
   bool effectiveDarkMode() const;
   void applyAppPalette(bool darkMode);
   void autoInitialsFromAuthor(QLineEdit* author, QLineEdit* initials);

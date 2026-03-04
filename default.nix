@@ -7,7 +7,7 @@ let
   qt = pkgs.qt6;
 in
 stdenv.mkDerivation rec {
-  pname = "idef0_editor";
+  pname = "erlu_idef0_editor";
   version = "0.1.0";
 
   src = lib.cleanSourceWith {
@@ -68,7 +68,7 @@ stdenv.mkDerivation rec {
   meta = with lib; {
     description = "IDEF0 diagram editor built with Qt 6 Widgets";
     license = licenses.lgpl3Plus;
-    mainProgram = "idef0_editor";
+    mainProgram = "erlu_idef0_editor";
     platforms = platforms.linux;
   };
 }

@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=IDEF0 Editor
-Comment=IDEF0 diagram editor
-Exec=idef0_editor %f
-Terminal=false
-Categories=Office;Graphics;
-MimeType=application/x-idef0+json;
-StartupNotify=true
