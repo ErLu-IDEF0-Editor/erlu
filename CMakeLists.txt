@@ -47,6 +47,12 @@ if(APPLE)
   )
 endif()
 
+if(WIN32)
+  set_target_properties(erlu_idef0_editor PROPERTIES
+    WIN32_EXECUTABLE TRUE
+  )
+endif()
+
 target_compile_definitions(erlu_idef0_editor PRIVATE $<$<NOT:$<CONFIG:Debug>>:QT_NO_DEBUG_OUTPUT>)
 
 target_include_directories(idef0_core PRIVATE src)
