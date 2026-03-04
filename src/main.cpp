@@ -73,6 +73,9 @@ int main(int argc, char** argv) {
 
   const QStringList searchPaths = {
     QDir::currentPath() + "/translations",
+    QCoreApplication::applicationDirPath() + "/translations",
+    QCoreApplication::applicationDirPath() + "/../translations",
+    QCoreApplication::applicationDirPath() + "/../Resources/translations",
     QCoreApplication::applicationDirPath() + "/../share/idef0/translations",
     ":/i18n"
   };

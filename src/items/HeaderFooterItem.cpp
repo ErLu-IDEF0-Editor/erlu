@@ -11,6 +11,7 @@
 #include <QButtonGroup>
 #include <QVBoxLayout>
 #include <QGraphicsSceneMouseEvent>
+#include <QApplication>
 
 HeaderFooterItem::HeaderFooterItem(DiagramScene* scene)
   : QGraphicsObject(nullptr)
@@ -221,7 +222,7 @@ void HeaderFooterItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) {
     return;
   }
 
-  auto* dlg = new QDialog();
+  auto* dlg = new QDialog(QApplication::activeWindow());
   dlg->setWindowTitle(tr("Edit header/footer"));
   auto* layout = new QVBoxLayout(dlg);
   auto* form = new QFormLayout();

@@ -8,6 +8,43 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Svg)
 
 qt_standard_project_setup()
 
+set(APP_TS_FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/translations/idef0_en.ts
+  ${CMAKE_CURRENT_SOURCE_DIR}/translations/idef0_fr.ts
+  ${CMAKE_CURRENT_SOURCE_DIR}/translations/idef0_ru.ts
+)
+
+set(COLORS_TS_FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/color/translations/colors_en.ts
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/color/translations/colors_fr.ts
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/color/translations/colors_ru.ts
+)
+
+find_program(QT_LRELEASE_EXECUTABLE NAMES lrelease-qt6 lrelease REQUIRED)
+
+function(generate_qm_files OUT_VAR OUT_DIR)
+  set(_qm_files "")
+  foreach(_ts_file IN LISTS ARGN)
+    get_filename_component(_ts_name "${_ts_file}" NAME_WE)
+    set(_qm_file "${OUT_DIR}/${_ts_name}.qm")
+    add_custom_command(
+      OUTPUT "${_qm_file}"
+      COMMAND "${CMAKE_COMMAND}" -E make_directory "${OUT_DIR}"
+      COMMAND "${QT_LRELEASE_EXECUTABLE}" "${_ts_file}" -qm "${_qm_file}"
+      DEPENDS "${_ts_file}"
+      VERBATIM
+    )
+    list(APPEND _qm_files "${_qm_file}")
+  endforeach()
+  set(${OUT_VAR} "${_qm_files}" PARENT_SCOPE)
+endfunction()
+
+generate_qm_files(
+  APP_QM_FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/translations"
+  ${APP_TS_FILES}
+)
+
 qt_add_library(idef0_core SHARED
   src/MainWindow.h src/MainWindow.cpp
   src/items/DiagramScene.h src/items/DiagramScene.cpp
@@ -24,6 +61,12 @@ option(BUILD_COLORS_PLUGIN "Build the Colors plugin" ON)
 qt_add_executable(erlu_idef0_editor
   src/main.cpp
 )
+
+if(WIN32)
+  target_sources(erlu_idef0_editor PRIVATE
+    packaging/windows/erlu.rc
+  )
+endif()
 
 qt_add_resources(erlu_idef0_editor "app_icons"
   PREFIX "/icons"
@@ -79,6 +122,17 @@ if(BUILD_COLORS_PLUGIN)
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins/color"
     INSTALL_RPATH "\$ORIGIN/../../lib"
   )
+  generate_qm_files(
+    COLORS_QM_FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/plugins/color/translations"
+    ${COLORS_TS_FILES}
+  )
+endif()
+
+add_custom_target(translations ALL DEPENDS ${APP_QM_FILES} ${COLORS_QM_FILES})
+add_dependencies(erlu_idef0_editor translations)
+if(BUILD_COLORS_PLUGIN)
+  add_dependencies(colorsplugin translations)
 endif()
 
 set_target_properties(erlu_idef0_editor PROPERTIES
@@ -98,6 +152,15 @@ if(BUILD_COLORS_PLUGIN)
   install(TARGETS colorsplugin
     LIBRARY DESTINATION plugins/color
     RUNTIME DESTINATION plugins/color
+  )
+endif()
+
+install(FILES ${APP_QM_FILES}
+  DESTINATION translations
+)
+if(BUILD_COLORS_PLUGIN)
+  install(FILES ${COLORS_QM_FILES}
+    DESTINATION plugins/color/translations
   )
 endif()
 

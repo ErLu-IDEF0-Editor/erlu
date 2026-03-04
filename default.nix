@@ -8,7 +8,7 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "erlu_idef0_editor";
-  version = "0.1.0";
+  version = "1.0.1";
 
   src = lib.cleanSourceWith {
     src = ./.;

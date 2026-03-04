@@ -54,6 +54,14 @@ static const char* kDiagramFileFilter = QT_TR_NOOP("IDEF0 Diagram (*.idef0);;JSO
 static const char* kPdfFileFilter = QT_TR_NOOP("PDF (*.pdf)");
 static const char* kMarkdownFileFilter = QT_TR_NOOP("Markdown (*.md)");
 
+static QFileDialog::Options themedFileDialogOptions() {
+  QFileDialog::Options options;
+#if defined(Q_OS_WIN)
+  options |= QFileDialog::DontUseNativeDialog;
+#endif
+  return options;
+}
+
 static QPageSize::PageSizeId pageSizeFromMeta(const QVariantMap& meta) {
   const QString size = meta.value("pageSize", "A4").toString();
   if (size == "A1") return QPageSize::A1;
@@ -95,7 +103,7 @@ static QVariantMap mergeWithDiagramState(QVariantMap globalMeta, const QVariantM
   return globalMeta;
 }
 
-MainWindow::MainWindow(const QString& startupPath, QWidget* parent)
+MainWindow::MainWindow(const QString& startupPath, QWidget* parent, bool skipStartupPrompt)
   : QMainWindow(parent)
 {
   setupUi();
@@ -106,7 +114,7 @@ MainWindow::MainWindow(const QString& startupPath, QWidget* parent)
       QTimer::singleShot(0, this, &QWidget::close);
       return;
     }
-  } else if (!promptStartup()) {
+  } else if (!skipStartupPrompt && !promptStartup()) {
     QTimer::singleShot(0, this, &QWidget::close);
     return;
   }
@@ -262,7 +270,8 @@ void MainWindow::setupActions() {
 
   connect(actNew, &QAction::triggered, this, [this]{ newDiagram(); });
   connect(actOpen, &QAction::triggered, this, [this]{
-    const QString path = QFileDialog::getOpenFileName(this, tr("Open diagram"), QString(), tr(kDiagramFileFilter));
+    const QString path = QFileDialog::getOpenFileName(
+      this, tr("Open diagram"), QString(), tr(kDiagramFileFilter), nullptr, themedFileDialogOptions());
     if (!path.isEmpty()) {
       loadDiagramFromPath(path);
     }
@@ -293,14 +302,16 @@ void MainWindow::setupActions() {
 
   connect(actSave, &QAction::triggered, this, [this, saveTo]{
     if (m_currentFile.isEmpty()) {
-      const QString path = QFileDialog::getSaveFileName(this, tr("Save diagram"), QString(), tr(kDiagramFileFilter));
+      const QString path = QFileDialog::getSaveFileName(
+        this, tr("Save diagram"), QString(), tr(kDiagramFileFilter), nullptr, themedFileDialogOptions());
       if (!path.isEmpty()) saveTo(path);
     } else {
       saveTo(m_currentFile);
     }
   });
   connect(actSaveAs, &QAction::triggered, this, [this, saveTo]{
-    const QString path = QFileDialog::getSaveFileName(this, tr("Save diagram as"), QString(), tr(kDiagramFileFilter));
+    const QString path = QFileDialog::getSaveFileName(
+      this, tr("Save diagram as"), QString(), tr(kDiagramFileFilter), nullptr, themedFileDialogOptions());
     if (!path.isEmpty()) saveTo(path);
   });
   connect(actExportPdf, &QAction::triggered, this, [this]{
@@ -411,9 +422,77 @@ static QString symbolPlacementDefault(const QLocale& loc, const QString& sym) {
   return "?1";
 }
 
+static void applyWindowsMenuPaletteFix(QMainWindow* window) {
+#if defined(Q_OS_WIN)
+  if (!window || !window->menuBar()) return;
+  const QPalette pal = qApp->palette();
+  const QString menuBg = pal.color(QPalette::Window).name(QColor::HexRgb);
+  const QString popupBg = pal.color(QPalette::Base).name(QColor::HexRgb);
+  const QString text = pal.color(QPalette::Active, QPalette::WindowText).name(QColor::HexRgb);
+  const QString selectedBg = pal.color(QPalette::Highlight).name(QColor::HexRgb);
+  const QString selectedText = pal.color(QPalette::HighlightedText).name(QColor::HexRgb);
+  const QString disabledText = pal.color(QPalette::Disabled, QPalette::WindowText).name(QColor::HexRgb);
+
+  window->menuBar()->setStyleSheet(QStringLiteral(
+    "QMenuBar { background-color: %1; color: %2; }"
+    "QMenuBar::item { background: transparent; color: %2; padding: 4px 8px; }"
+    "QMenuBar::item:selected { background-color: %3; color: %4; }"
+    "QMenuBar::item:disabled { color: %5; }"
+    "QMenu { background-color: %6; color: %2; border: 1px solid %1; }"
+    "QMenu::item { color: %2; }"
+    "QMenu::item:selected { background-color: %3; color: %4; }"
+    "QMenu::item:disabled { color: %5; }")
+    .arg(menuBg, text, selectedBg, selectedText, disabledText, popupBg));
+#else
+  Q_UNUSED(window);
+#endif
+}
+
+static void applyWindowsDialogPaletteFix(bool darkMode) {
+#if defined(Q_OS_WIN)
+  if (!darkMode) {
+    qApp->setStyleSheet(QString());
+    return;
+  }
+  const QPalette pal = qApp->palette();
+  const QString window = pal.color(QPalette::Window).name(QColor::HexRgb);
+  const QString base = pal.color(QPalette::Base).name(QColor::HexRgb);
+  const QString text = pal.color(QPalette::Active, QPalette::WindowText).name(QColor::HexRgb);
+  const QString border = pal.color(QPalette::Mid).name(QColor::HexRgb);
+  const QString btn = pal.color(QPalette::Button).name(QColor::HexRgb);
+  const QString btnText = pal.color(QPalette::Active, QPalette::ButtonText).name(QColor::HexRgb);
+  const QString disabled = pal.color(QPalette::Disabled, QPalette::WindowText).name(QColor::HexRgb);
+  const QString highlight = pal.color(QPalette::Highlight).name(QColor::HexRgb);
+  const QString highlightedText = pal.color(QPalette::HighlightedText).name(QColor::HexRgb);
+
+  qApp->setStyleSheet(QStringLiteral(
+    "QDialog, QMessageBox, QInputDialog, QFileDialog, QColorDialog { background-color: %1; color: %2; }"
+    "QTabWidget::pane { background-color: %1; border: 1px solid %5; }"
+    "QTabBar::tab { background-color: %3; color: %4; border: 1px solid %5; padding: 4px 10px; }"
+    "QTabBar::tab:selected { background-color: %1; color: %2; }"
+    "QTabBar::tab:disabled { color: %6; }"
+    "QTabWidget QWidget { background-color: %1; color: %2; }"
+    "QLabel, QCheckBox, QRadioButton, QGroupBox { color: %2; }"
+    "QPushButton { background-color: %3; color: %4; border: 1px solid %5; padding: 4px 10px; }"
+    "QPushButton:disabled { color: %6; }"
+    "QLineEdit, QPlainTextEdit, QTextEdit, QAbstractSpinBox, QComboBox {"
+    "  background-color: %7; color: %2; border: 1px solid %5; selection-background-color: %8; selection-color: %9; }"
+    "QAbstractItemView, QListView, QTreeView, QTableView {"
+    "  background-color: %7; color: %2; border: 1px solid %5; selection-background-color: %8; selection-color: %9; }"
+    "QDialogButtonBox QPushButton { min-width: 80px; }")
+    .arg(window, text, btn, btnText, border, disabled, base, highlight, highlightedText));
+#else
+  Q_UNUSED(darkMode);
+#endif
+}
+
 bool MainWindow::showWelcome() {
   auto* dlg = new QDialog(this);
   dlg->setWindowTitle(tr("Welcome"));
+  dlg->setPalette(qApp->palette());
+#if defined(Q_OS_WIN)
+  dlg->setStyleSheet(qApp->styleSheet());
+#endif
   auto* tabs = new QTabWidget(dlg);
 
   // General tab
@@ -444,20 +523,6 @@ bool MainWindow::showWelcome() {
   setTabOrder(author, initials);
   general->setLayout(genForm);
   tabs->addTab(general, tr("General"));
-
-  // Numbering tab (placeholder)
-  auto* numbering = new QWidget(dlg);
-  auto* numLayout = new QVBoxLayout(numbering);
-  numLayout->addStretch();
-  numbering->setLayout(numLayout);
-  tabs->addTab(numbering, tr("Numbering"));
-
-  // Display tab (placeholder)
-  auto* display = new QWidget(dlg);
-  auto* disLayout = new QVBoxLayout(display);
-  disLayout->addStretch();
-  display->setLayout(disLayout);
-  tabs->addTab(display, tr("Display"));
 
   // ABC Units tab
   auto* units = new QWidget(dlg);
@@ -577,17 +642,31 @@ void MainWindow::resetScene() {
 
 void MainWindow::newDiagram() {
   if (!showWelcome()) return;
-  resetScene();
-  const QRectF bounds = m_scene->contentRect().isNull() ? m_scene->sceneRect() : m_scene->contentRect();
-  m_scene->createBlockAt(bounds.center());
-  m_currentFile.clear();
-  markDirty(false);
-  // Keep main window visible and focused after closing modal creation dialogs.
-  QTimer::singleShot(0, this, [this]{
-    setWindowState(windowState() & ~Qt::WindowMinimized);
-    showNormal();
-    raise();
-    activateWindow();
+  auto* win = new MainWindow(QString(), nullptr, true);
+  win->m_welcomeState = m_welcomeState;
+
+  if (win->m_actDarkMode && win->m_actFollowSystemTheme) {
+    const QSignalBlocker b2(win->m_actDarkMode);
+    const QSignalBlocker b3(win->m_actFollowSystemTheme);
+    win->m_actDarkMode->setChecked(win->m_welcomeState.value("darkMode", false).toBool());
+    win->m_actFollowSystemTheme->setChecked(win->m_welcomeState.value("followSystemTheme", false).toBool());
+    win->m_actDarkMode->setEnabled(!win->m_actFollowSystemTheme->isChecked());
+  }
+
+  win->m_welcomeState["resolvedDarkMode"] = win->effectiveDarkMode();
+  win->applyAppPalette(win->m_welcomeState.value("resolvedDarkMode").toBool());
+  win->resetScene();
+  const QRectF bounds = win->m_scene->contentRect().isNull() ? win->m_scene->sceneRect() : win->m_scene->contentRect();
+  win->m_scene->createBlockAt(bounds.center());
+  win->m_currentFile.clear();
+  win->markDirty(false);
+  win->resize(size());
+  win->show();
+  QTimer::singleShot(0, win, [win]{
+    win->setWindowState(win->windowState() & ~Qt::WindowMinimized);
+    win->showNormal();
+    win->raise();
+    win->activateWindow();
   });
 }
 
@@ -601,7 +680,8 @@ bool MainWindow::promptStartup() {
   box.exec();
   if (box.clickedButton() == cancelBtn) return false;
   if (box.clickedButton() == openBtn) {
-    const QString path = QFileDialog::getOpenFileName(this, tr("Open diagram"), QString(), tr(kDiagramFileFilter));
+    const QString path = QFileDialog::getOpenFileName(
+      this, tr("Open diagram"), QString(), tr(kDiagramFileFilter), nullptr, themedFileDialogOptions());
     if (path.isEmpty()) return false;
     return loadDiagramFromPath(path);
   }
@@ -659,7 +739,8 @@ bool MainWindow::loadDiagramFromPath(const QString& path) {
 }
 
 bool MainWindow::exportPdf(bool allDiagrams, bool numberPages, bool forceLightTheme) {
-  QString path = QFileDialog::getSaveFileName(this, tr("Export to PDF"), QString(), tr(kPdfFileFilter));
+  QString path = QFileDialog::getSaveFileName(
+    this, tr("Export to PDF"), QString(), tr(kPdfFileFilter), nullptr, themedFileDialogOptions());
   if (path.isEmpty()) return false;
   if (QFileInfo(path).suffix().isEmpty()) path += ".pdf";
 
@@ -765,7 +846,8 @@ bool MainWindow::exportPdf(bool allDiagrams, bool numberPages, bool forceLightTh
 
 bool MainWindow::exportMarkdownExplanation() {
   if (!m_scene) return false;
-  QString path = QFileDialog::getSaveFileName(this, tr("Export to Markdown"), QString(), tr(kMarkdownFileFilter));
+  QString path = QFileDialog::getSaveFileName(
+    this, tr("Export to Markdown"), QString(), tr(kMarkdownFileFilter), nullptr, themedFileDialogOptions());
   if (path.isEmpty()) return false;
   if (QFileInfo(path).suffix().isEmpty()) path += ".md";
 
@@ -909,6 +991,8 @@ void MainWindow::applyAppPalette(bool darkMode) {
   static const QPalette defaultPalette = qApp->palette();
   if (!darkMode) {
     qApp->setPalette(defaultPalette);
+    applyWindowsDialogPaletteFix(false);
+    applyWindowsMenuPaletteFix(this);
     return;
   }
   QPalette p;
@@ -925,6 +1009,8 @@ void MainWindow::applyAppPalette(bool darkMode) {
   p.setColor(QPalette::Highlight, QColor(75, 110, 180));
   p.setColor(QPalette::HighlightedText, QColor(255, 255, 255));
   qApp->setPalette(p);
+  applyWindowsDialogPaletteFix(true);
+  applyWindowsMenuPaletteFix(this);
 }
 
 bool MainWindow::openDiagramPath(const QString& path) {

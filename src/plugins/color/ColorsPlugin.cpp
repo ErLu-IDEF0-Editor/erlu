@@ -1,4 +1,4 @@
-#include "plugins/color/ColorsPlugin.h"
+﻿#include "plugins/color/ColorsPlugin.h"
 
 #include <QColorDialog>
 #include <QObject>
@@ -66,7 +66,11 @@ static void onSetColor(void*, Idef0Host* host) {
   const size_t count = host->selected_items(host->opaque, items, 64);
   if (count == 0) return;
   QColor initial("#2b6ee6");
-  const QColor chosen = QColorDialog::getColor(initial, nullptr, QObject::tr("Select item color"));
+  QColorDialog::ColorDialogOptions options;
+#if defined(Q_OS_WIN)
+  options |= QColorDialog::DontUseNativeDialog;
+#endif
+  const QColor chosen = QColorDialog::getColor(initial, nullptr, QObject::tr("Select item color"), options);
   if (!chosen.isValid()) return;
   const QByteArray hex = chosen.name(QColor::HexRgb).toUtf8();
   for (size_t i = 0; i < count; ++i) {
@@ -88,7 +92,7 @@ extern "C" bool idef0_plugin_init_v1(Idef0Host* host) {
   if (!host || !host->add_menu_action) return false;
   ensureTranslator(host);
   qInfo() << "[colors plugin] init, plugin dir:" << (host->plugin_dir ? host->plugin_dir(host->opaque) : "(none)");
-  host->add_menu_action(host->opaque, QObject::tr("Set item color…").toUtf8().constData(), &onSetColor, nullptr);
+  host->add_menu_action(host->opaque, QObject::tr("Set item color...").toUtf8().constData(), &onSetColor, nullptr);
   host->add_menu_action(host->opaque, QObject::tr("Clear item colors").toUtf8().constData(), &onClearColor, nullptr);
   return true;
 }

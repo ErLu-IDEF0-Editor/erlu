@@ -13,7 +13,7 @@ class PluginManager;
 class MainWindow final : public QMainWindow {
   Q_OBJECT
 public:
-  explicit MainWindow(const QString& startupPath = QString(), QWidget* parent = nullptr);
+  explicit MainWindow(const QString& startupPath = QString(), QWidget* parent = nullptr, bool skipStartupPrompt = false);
   bool openDiagramPath(const QString& path);
   DiagramScene* scene() const { return m_scene; }
 

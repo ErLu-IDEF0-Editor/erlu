@@ -16,6 +16,7 @@
 #include <QCheckBox>
 #include <QVBoxLayout>
 #include <QLocale>
+#include <QApplication>
 
 #include "DiagramScene.h"
 
@@ -281,7 +282,7 @@ QString BlockItem::formattedPrice() const {
 }
 
 void BlockItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) {
-  auto* dlg = new QDialog();
+  auto* dlg = new QDialog(QApplication::activeWindow());
   dlg->setWindowTitle(tr("Edit block"));
 
   auto* layout = new QVBoxLayout(dlg);
