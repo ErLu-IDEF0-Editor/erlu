@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="123" height="103" viewBox="0 0 123 103">
+  <rect x="27" y="27" width="60" height="40" rx="6" ry="6" fill="#dae8fc" stroke="#6c8ebf" stroke-width="2"/>
+  <text x="57" y="56" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1f2f46">P</text>
+
+  <line x1="7" y1="47" x2="20.63" y2="46.66" stroke="#6c8ebf" stroke-width="2"/>
+  <path d="M25.88 46.53 L18.97 50.2 L20.63 46.66 L18.8 43.2 Z" fill="#6c8ebf"/>
+
+  <line x1="57" y1="87" x2="57" y2="73.37" stroke="#6c8ebf" stroke-width="2"/>
+  <path d="M57 68.12 L60.5 75.12 L57 73.37 L53.5 75.12 Z" fill="#6c8ebf"/>
+
+  <line x1="57" y1="7" x2="57" y2="20.63" stroke="#6c8ebf" stroke-width="2"/>
+  <path d="M57 25.88 L53.5 18.88 L57 20.63 L60.5 18.88 Z" fill="#6c8ebf"/>
+
+  <line x1="87" y1="47.25" x2="100.63" y2="46.91" stroke="#6c8ebf" stroke-width="2"/>
+  <path d="M105.88 46.78 L98.97 50.45 L100.63 46.91 L98.8 43.45 Z" fill="#6c8ebf"/>
+</svg>
