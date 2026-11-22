@@ -1,0 +1,11 @@
+{
+  "id": "colors",
+  "api_version": 1,
+  "version": "0.1.0",
+  "component": "dist/colors.wasm",
+  "web": "dist/colors.js",
+  "actions": [
+    {"name":"colors.set","title":"Set item color...","kind":"command","input_schema":{"type":"object","properties":{"color":{"type":"string","pattern":"^#[0-9a-fA-F]{6}$"}},"required":["color"],"additionalProperties":false}},
+    {"name":"colors.clear","title":"Clear item colors","kind":"command","input_schema":{"type":"object","properties":{},"additionalProperties":false}}
+  ]
+}

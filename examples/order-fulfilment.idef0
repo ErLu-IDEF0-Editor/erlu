@@ -1,0 +1,450 @@
+{
+  "diagrams": {
+    "1": {
+      "arrows": {
+        "3": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "input",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 3,
+          "interface": null,
+          "label": "Customer orders",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 2,
+              "kind": "block",
+              "port": "input",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        },
+        "4": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "control",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 4,
+          "interface": null,
+          "label": "Fulfilment policy",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 2,
+              "kind": "block",
+              "port": "control",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        },
+        "5": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "mechanism",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 5,
+          "interface": null,
+          "label": "Operations team",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 2,
+              "kind": "block",
+              "port": "mechanism",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        },
+        "6": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "id": 2,
+              "kind": "block",
+              "port": "output",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 6,
+          "interface": null,
+          "label": "Completed orders",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "output",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        }
+      },
+      "blocks": {
+        "2": {
+          "child": 7,
+          "color": null,
+          "id": 2,
+          "number": "A0",
+          "pos": {
+            "x": -26.5,
+            "y": -9.05
+          },
+          "price": 45.0,
+          "title": "Fulfil customer orders"
+        }
+      },
+      "id": 1,
+      "junctions": {},
+      "notation": "idef0",
+      "parent_block": null,
+      "state": "working"
+    },
+    "7": {
+      "arrows": {
+        "10": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "mechanism",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 10,
+          "interface": {
+            "parent_arrow": 5,
+            "port": "mechanism",
+            "stub": false,
+            "t": 0.5
+          },
+          "label": "Operations team",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 12,
+              "kind": "block",
+              "port": "mechanism",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        },
+        "11": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "id": 14,
+              "kind": "block",
+              "port": "output",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 11,
+          "interface": {
+            "parent_arrow": 6,
+            "port": "output",
+            "stub": false,
+            "t": 0.5
+          },
+          "label": "Completed orders",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "output",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        },
+        "15": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "id": 12,
+              "kind": "block",
+              "port": "output",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 15,
+          "interface": null,
+          "label": "Accepted orders",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 13,
+              "kind": "block",
+              "port": "input",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        },
+        "16": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "id": 13,
+              "kind": "block",
+              "port": "output",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 16,
+          "interface": null,
+          "label": "Packed shipments",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 14,
+              "kind": "block",
+              "port": "input",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        },
+        "8": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "input",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 8,
+          "interface": {
+            "parent_arrow": 3,
+            "port": "input",
+            "stub": false,
+            "t": 0.5
+          },
+          "label": "Customer orders",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 12,
+              "kind": "block",
+              "port": "input",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        },
+        "9": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "control",
+              "t": 0.5
+            },
+            "tunneled": false
+          },
+          "id": 9,
+          "interface": {
+            "parent_arrow": 4,
+            "port": "control",
+            "stub": false,
+            "t": 0.5
+          },
+          "label": "Fulfilment policy",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 12,
+              "kind": "block",
+              "port": "control",
+              "t": 0.5
+            },
+            "tunneled": false
+          }
+        }
+      },
+      "blocks": {
+        "12": {
+          "child": null,
+          "color": null,
+          "id": 12,
+          "number": "A1",
+          "pos": {
+            "x": -105.0,
+            "y": -45.0
+          },
+          "price": 10.0,
+          "title": "Receive orders"
+        },
+        "13": {
+          "child": null,
+          "color": null,
+          "id": 13,
+          "number": "A2",
+          "pos": {
+            "x": -25.0,
+            "y": -7.0
+          },
+          "price": 15.0,
+          "title": "Prepare shipment"
+        },
+        "14": {
+          "child": null,
+          "color": null,
+          "id": 14,
+          "number": "A3",
+          "pos": {
+            "x": 55.0,
+            "y": 31.0
+          },
+          "price": 20.0,
+          "title": "Deliver goods"
+        }
+      },
+      "id": 7,
+      "junctions": {},
+      "notation": "idef0",
+      "parent_block": 2,
+      "state": "working"
+    }
+  },
+  "extensions": {},
+  "features": {
+    "optional": [],
+    "required": [
+      "abc.costs",
+      "appearance.colors",
+      "idef0",
+      "idef0.calls",
+      "idef0.decomposition",
+      "idef0.tunnels"
+    ]
+  },
+  "format": "erlu",
+  "format_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "id_sequence": 17,
+  "meta": {
+    "author": "Alex Morgan",
+    "context": "",
+    "currency": "€",
+    "currency_placement": "1 ?",
+    "date": "",
+    "footer_node_override": "",
+    "footer_number_override": "",
+    "footer_title_override": "",
+    "initials": "AM",
+    "notes": "",
+    "number": "",
+    "organization": "Example.Org",
+    "page_size": "A4",
+    "portrait": false,
+    "project": "",
+    "reader": "",
+    "reader_date": "",
+    "revision": "",
+    "time_unit": "days",
+    "title": "Fulfil customer orders",
+    "used_at": "",
+    "with_footer": true,
+    "with_header": true
+  },
+  "root": 1
+}

@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Document",
+  "type": "object",
+  "properties": {
+    "diagrams": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^\\d+$": {
+          "$ref": "#/$defs/Diagram"
+        }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true,
+      "default": {}
+    },
+    "features": {
+      "$ref": "#/$defs/Features"
+    },
+    "format": {
+      "type": "string"
+    },
+    "format_version": {
+      "$ref": "#/$defs/FormatVersion"
+    },
+    "id_sequence": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "meta": {
+      "$ref": "#/$defs/Metadata"
+    },
+    "root": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "format",
+    "format_version",
+    "features",
+    "root",
+    "id_sequence",
+    "meta",
+    "diagrams"
+  ],
+  "$defs": {
+    "Anchor": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "block"
+            },
+            "port": {
+              "$ref": "#/$defs/Port"
+            },
+            "t": {
+              "type": "number",
+              "format": "double",
+              "default": 0.5
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "port"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "junction"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "boundary"
+            },
+            "port": {
+              "$ref": "#/$defs/Port"
+            },
+            "t": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "required": [
+            "kind",
+            "port",
+            "t"
+          ]
+        }
+      ]
+    },
+    "Arrow": {
+      "type": "object",
+      "properties": {
+        "bends": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Point"
+          }
+        },
+        "call_ref": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "from": {
+          "$ref": "#/$defs/Endpoint"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "interface": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Interface"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "label": {
+          "type": "string",
+          "default": ""
+        },
+        "label_hidden": {
+          "type": "boolean",
+          "default": false
+        },
+        "label_offset": {
+          "$ref": "#/$defs/Point",
+          "default": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "label_source": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "to": {
+          "$ref": "#/$defs/Endpoint"
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "from",
+        "to"
+      ]
+    },
+    "Block": {
+      "type": "object",
+      "properties": {
+        "child": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "number": {
+          "type": "string"
+        },
+        "pos": {
+          "$ref": "#/$defs/Point"
+        },
+        "price": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "default": null
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "title",
+        "number",
+        "pos"
+      ]
+    },
+    "Diagram": {
+      "type": "object",
+      "properties": {
+        "arrows": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Arrow"
+            }
+          }
+        },
+        "blocks": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Block"
+            }
+          }
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "junctions": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Junction"
+            }
+          }
+        },
+        "notation": {
+          "type": "string"
+        },
+        "parent_block": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "state": {
+          "$ref": "#/$defs/DiagramState",
+          "default": "working"
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "notation"
+      ]
+    },
+    "DiagramState": {
+      "type": "string",
+      "enum": [
+        "working",
+        "draft",
+        "recommended",
+        "publication"
+      ]
+    },
+    "Endpoint": {
+      "type": "object",
+      "properties": {
+        "anchor": {
+          "$ref": "#/$defs/Anchor"
+        },
+        "tunneled": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "anchor"
+      ]
+    },
+    "Features": {
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "required"
+      ]
+    },
+    "FormatVersion": {
+      "type": "object",
+      "properties": {
+        "major": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "minor": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "major",
+        "minor"
+      ]
+    },
+    "Interface": {
+      "type": "object",
+      "properties": {
+        "parent_arrow": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "port": {
+          "$ref": "#/$defs/Port"
+        },
+        "stub": {
+          "type": "boolean"
+        },
+        "t": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "parent_arrow",
+        "port",
+        "t",
+        "stub"
+      ]
+    },
+    "Junction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "pos": {
+          "$ref": "#/$defs/Point"
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "pos"
+      ]
+    },
+    "Metadata": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string",
+          "default": ""
+        },
+        "context": {
+          "type": "string",
+          "default": ""
+        },
+        "currency": {
+          "type": "string",
+          "default": "$"
+        },
+        "currency_placement": {
+          "type": "string",
+          "default": "1?"
+        },
+        "date": {
+          "type": "string",
+          "default": ""
+        },
+        "footer_node_override": {
+          "type": "string",
+          "default": ""
+        },
+        "footer_number_override": {
+          "type": "string",
+          "default": ""
+        },
+        "footer_title_override": {
+          "type": "string",
+          "default": ""
+        },
+        "initials": {
+          "type": "string",
+          "default": ""
+        },
+        "notes": {
+          "type": "string",
+          "default": ""
+        },
+        "number": {
+          "type": "string",
+          "default": ""
+        },
+        "organization": {
+          "type": "string",
+          "default": ""
+        },
+        "page_size": {
+          "type": "string",
+          "default": "A4"
+        },
+        "portrait": {
+          "type": "boolean",
+          "default": false
+        },
+        "project": {
+          "type": "string",
+          "default": ""
+        },
+        "reader": {
+          "type": "string",
+          "default": ""
+        },
+        "reader_date": {
+          "type": "string",
+          "default": ""
+        },
+        "revision": {
+          "type": "string",
+          "default": ""
+        },
+        "time_unit": {
+          "type": "string",
+          "default": "days"
+        },
+        "title": {
+          "type": "string",
+          "default": ""
+        },
+        "used_at": {
+          "type": "string",
+          "default": ""
+        },
+        "with_footer": {
+          "type": "boolean",
+          "default": true
+        },
+        "with_header": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "Point": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "Port": {
+      "type": "string",
+      "enum": [
+        "input",
+        "control",
+        "output",
+        "mechanism"
+      ]
+    }
+  }
+}

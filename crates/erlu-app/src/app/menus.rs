@@ -1,0 +1,260 @@
+use super::*;
+
+impl ErluApp {
+    pub(super) fn menu(&mut self, ui: &mut egui::Ui, snapshot: &Engine) {
+        egui::MenuBar::new().ui(ui, |ui| {
+            ui.menu_button(self.tr("File"), |ui| {
+                for (label,action) in [("New",0),("Open…",1),("Save",2),("Save As…",3),("Export to PDF…",4),("Export to Markdown…",5),("Export to SVG…",6)] {
+                    if ui.button(self.tr(label)).clicked() {
+                        ui.close();
+                        match action {
+                            0=>self.request(Pending::New), 1=>self.request(Pending::Open),
+                            2=>self.save(false), 3=>self.save(true), 4=>self.dialogs.export=true,
+                            5=>self.export("md"), _=>self.export("svg"),
+                        }
+                    }
+                }
+            });
+            ui.menu_button(self.tr("Edit"), |ui| {
+                for (label,command) in [("Undo",Command::Undo{}),("Redo",Command::Redo{}),("Delete",Command::ObjectsDelete{ids:snapshot.view.selection.iter().copied().collect()})] {
+                    if ui.button(self.tr(label)).clicked() {self.execute(command);ui.close();}
+                }
+                if ui.button(self.tr("Swap numbers…")).clicked() {self.dialogs.swap=true;ui.close();}
+                if ui.button(self.tr("Call Mechanism add")).clicked() {self.dialogs.call=true;ui.close();}
+                if ui.button(self.tr("Properties…")).clicked() {
+                    self.dialogs.metadata=Some(snapshot.document.meta.clone());
+                    self.dialogs.state=snapshot.document.diagrams[&snapshot.view.diagram].state;
+                    self.dialogs.new_metadata=false;self.dialogs.tab=0;ui.close();
+                }
+            });
+            ui.menu_button(self.tr("Tools"), |ui| {
+                if ui.button(self.tr("Validation")).clicked() {
+                    if let Some(r)=self.execute(Command::Validate{}) {self.dialogs.report=Some(self.validation_report(&r.result,snapshot));}
+                    ui.close();
+                }
+                if ui.button(self.tr("Calculate Prices")).clicked() {
+                    if let Some(r)=self.execute(Command::CalculatePrices{}) {self.dialogs.report=Some(format!("{}: {}",self.tr("Updated blocks"),r.result["updated_blocks"]));}
+                    ui.close();
+                }
+                if ui.button(self.tr("Node tree…")).clicked() {self.dialogs.tree=true;ui.close();}
+            });
+            ui.menu_button(self.tr("View"), |ui| {
+                for (label,zoom) in [("Fit",1.),("Scale +",snapshot.view.zoom*1.1),("Scale -",snapshot.view.zoom/1.1)] {
+                    if ui.button(self.tr(label)).clicked() {
+                        self.execute(if label=="Fit" {Command::ViewFit{}} else {Command::ViewSet{zoom:Some(zoom.clamp(0.05,40.)),center:None,theme:None}});
+                        ui.close();
+                    }
+                }
+                for (label,theme) in [("Follow system theme",Theme::System),("Dark mode",Theme::Dark),("Light mode",Theme::Light)] {
+                    if ui.selectable_label(snapshot.view.theme==theme,self.tr(label)).clicked() {
+                        self.execute(Command::ViewSet{zoom:None,center:None,theme:Some(theme)});ui.close();
+                    }
+                }
+                ui.separator();
+                for (language,label) in [("en","English"),("ru","Русский"),("fr","Français")] {
+                    if ui.selectable_label(self.language==language,label).clicked() {
+                        self.language=language.into();self.execute(Command::LanguageSet{language:language.into()});ui.close();
+                    }
+                }
+            });
+            let specs=self.plugin_specs();
+            ui.menu_button(self.tr("Plugins"), |ui| {
+                if ui.button(self.tr("Set item color...")).clicked() {self.dialogs.colors=true;ui.close();}
+                if ui.button(self.tr("Clear item colors")).clicked() {self.plugin_color(snapshot,None);ui.close();}
+                for spec in specs {
+                    if spec.name.starts_with("plugin_colors_") {continue;}
+                    if ui.button(&spec.description).clicked() {
+                        let arguments=form_defaults(&spec.input_schema);self.dialogs.plugin=Some(PluginForm{spec,arguments});ui.close();
+                    }
+                }
+                #[cfg(not(target_arch="wasm32"))]
+                if ui.button(self.tr("Load plugin…")).clicked() {
+                    if let Some(path)=rfd::FileDialog::new().add_filter("Plugin manifest",&["json"]).pick_file()
+                        && let Err(e)=self.plugins.lock().unwrap().load(&path) {self.status=e.to_string();}
+                    ui.close();
+                }
+                #[cfg(target_arch="wasm32")]
+                if ui.button(self.tr("Load plugin…")).clicked() {crate::web::load_plugin();ui.close();}
+            });
+            egui::containers::menu::MenuButton::new("AI")
+                .config(egui::containers::menu::MenuConfig::new().close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside))
+                .ui(ui, |ui| {
+                    #[cfg(target_arch="wasm32")]
+                    {
+                        let caption=self.tr("Allow agent for this tab");ui.checkbox(&mut self.ai_enabled,caption);
+                        ui.label(self.tr("Allowed origin"));ui.text_edit_singleline(&mut self.ai_origin);
+                        if !self.ai_enabled {self.web_events.revoke();}
+                        ui.label(self.tr("Connect using the erlu browser SDK"));
+                    }
+                    #[cfg(not(target_arch="wasm32"))]
+                    {
+                        if self.ai_token.is_empty() {ui.label(self.tr("Start with --mcp to enable MCP"));}
+                        else {
+                            ui.label("MCP: http://127.0.0.1:38479/mcp");ui.label(self.tr("Token"));
+                            let mut token=self.ai_token.clone();ui.add(egui::TextEdit::singleline(&mut token).password(true).interactive(false));
+                            if ui.button(self.tr("Copy connection")).clicked() {
+                                ui.ctx().copy_text(json!({"url":"http://127.0.0.1:38479/mcp","headers":{"Authorization":format!("Bearer {}",self.ai_token)}}).to_string());
+                            }
+                        }
+                    }
+                });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(format!("{}{}",if snapshot.dirty(){"● "}else{""},snapshot.document.meta.title));
+            });
+        });
+    }
+    fn validation_report(&self, result: &Value, snapshot: &Engine) -> String {
+        let mut report = String::new();
+        for (severity, title) in [("error", "Errors:"), ("warning", "Warnings:")] {
+            report.push_str(&self.tr(title));
+            report.push('\n');
+            let mut count = 0;
+            if let Some(items) = result.as_array() {
+                for item in items.iter().filter(|v| v["severity"] == severity) {
+                    count += 1;
+                    let code = item["code"].as_str().unwrap_or("");
+                    let message = match code {
+                        "context_block_count" => "The context diagram should contain one block",
+                        "decomposition_block_count" => "A decomposition should contain 3–8 blocks",
+                        "incomplete_interface" => "Decomposition has unconnected interface circles",
+                        "block_name" => "Provide a meaningful function name",
+                        "missing_input_control" => "At least one input or control is required",
+                        "missing_output" => "At least one output is required",
+                        "identical_input_output" => "Input and output names must differ",
+                        "black_box" => "All connected endpoints are tunneled",
+                        "unrelated_block" => "No direct relation to other decomposition blocks",
+                        "cost_mismatch" => "Subprocess cost exceeds parent cost",
+                        "interface_role_change" => "A boundary flow changes its ICOM role",
+                        "output_as_mechanism" => "A block output acts as another block's mechanism",
+                        "duplicate_arrow" => {
+                            "The same labelled arrow enters a block more than once"
+                        }
+                        _ => item["message"].as_str().unwrap_or(""),
+                    };
+                    let node = item["diagram"]
+                        .as_u64()
+                        .map(|id| snapshot.document.node(id))
+                        .unwrap_or_default();
+                    let object = item["object"]
+                        .as_u64()
+                        .and_then(|id| snapshot.document.block(id))
+                        .map(|b| format!(" — {} {}", b.number, b.title))
+                        .unwrap_or_default();
+                    report.push_str(&format!("{count}. {} ({node}{object})\n", self.tr(message)));
+                }
+            }
+            if count == 0 {
+                report.push_str(&self.tr("None."));
+                report.push('\n');
+            }
+            report.push('\n');
+        }
+        report
+    }
+    pub(super) fn plugin_specs(&self) -> Vec<ActionSpec> {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.plugins.lock().unwrap().specs()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            crate::web::plugin_specs()
+        }
+    }
+    pub(super) fn invoke_registered(&mut self, name: &str, args: Value, snapshot: &Engine) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let resolved = self.plugins.lock().unwrap().resolve(name);
+            if let Some((id, action)) = resolved {
+                let output = self
+                    .plugins
+                    .lock()
+                    .unwrap()
+                    .invoke_output(&id, &action, args, snapshot);
+                match output {
+                    Ok(output) => {
+                        if self
+                            .execute_at(
+                                Command::Transaction {
+                                    commands: output.commands,
+                                },
+                                snapshot.revision,
+                            )
+                            .is_some()
+                            && !output.result.is_null()
+                        {
+                            self.dialogs.report =
+                                Some(serde_json::to_string_pretty(&output.result).unwrap());
+                        }
+                    }
+                    Err(e) => self.status = e.to_string(),
+                }
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            crate::web::invoke_registered(name, args, snapshot.revision);
+        }
+    }
+    pub fn show_plugin_result(&mut self, result: Value) {
+        if result["ok"] == false {
+            self.status = result["error"]["message"]
+                .as_str()
+                .unwrap_or("Plugin error")
+                .into();
+        } else if let Some(value) = result.get("response").and_then(|r| r.get("result"))
+            && value != &json!({})
+            && !value.is_null()
+        {
+            self.dialogs.report = Some(serde_json::to_string_pretty(value).unwrap());
+        }
+    }
+    pub(super) fn plugin_color(&mut self, snapshot: &Engine, color: Option<String>) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let result = self.plugins.lock().unwrap().invoke(
+                "colors",
+                if color.is_some() {
+                    "colors.set"
+                } else {
+                    "colors.clear"
+                },
+                json!({"color":color}),
+                snapshot,
+            );
+            match result {
+                Ok(commands) => {
+                    self.execute_at(Command::Transaction { commands }, snapshot.revision);
+                }
+                Err(e) => {
+                    self.status = e.to_string();
+                }
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        crate::web::invoke_plugin(
+            "colors",
+            if color.is_some() {
+                "colors.set"
+            } else {
+                "colors.clear"
+            },
+            json!({"color":color}),
+            snapshot,
+        );
+    }
+    pub(super) fn has_modal(&self) -> bool {
+        self.dialogs.startup
+            || self.dialogs.metadata.is_some()
+            || self.dialogs.block.is_some()
+            || self.dialogs.arrow.is_some()
+            || self.dialogs.report.is_some()
+            || self.dialogs.tree
+            || self.dialogs.export
+            || self.dialogs.colors
+            || self.dialogs.call
+            || self.dialogs.swap
+            || self.dialogs.plugin.is_some()
+            || self.pending.is_some()
+    }
+}

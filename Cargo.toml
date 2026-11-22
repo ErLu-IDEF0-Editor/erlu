@@ -1,0 +1,29 @@
+[workspace]
+members = ["crates/erlu-core", "crates/erlu-app", "crates/erlu-plugins"]
+exclude = ["plugins/colors"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "LGPL-3.0-or-later"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+schemars = { version = "1.2", features = ["derive"] }
+thiserror = "2"
+erlu-core = { path = "crates/erlu-core" }
+erlu-plugins = { path = "crates/erlu-plugins" }
+
+[profile.release]
+lto = "thin"
+strip = true
+
+[profile.dev]
+debug = 1
+
+# Keep target_features for wasm-bindgen; dependency rlibs remain stripped.
+[profile.release.package.erlu]
+strip = "debuginfo"

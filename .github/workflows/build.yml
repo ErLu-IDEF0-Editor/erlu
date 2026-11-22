@@ -1,0 +1,62 @@
+name: Desktop and web
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04, target: x86_64-unknown-linux-gnu}
+          - {os: windows-latest, target: x86_64-pc-windows-msvc}
+          - {os: macos-latest, target: aarch64-apple-darwin}
+          - {os: macos-15-intel, target: x86_64-apple-darwin}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.99.0'
+          targets: wasm32-unknown-unknown,${{ matrix.target }}
+          components: rustfmt,clippy
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm, cache-dependency-path: web/package-lock.json}
+      - uses: Swatinem/rust-cache@v2
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev
+      - run: cargo install wasm-tools --version 1.263.0 --locked
+      - run: npm --prefix web ci
+      - run: npm --prefix web run plugins
+      - run: cargo fmt --all -- --check
+      - run: cargo test --workspace --locked
+      - run: cargo build -p erlu --release --target ${{ matrix.target }} --locked
+      - run: python scripts/test_mcp.py target/${{ matrix.target }}/release/erlu${{ runner.os == 'Windows' && '.exe' || '' }}
+      - run: python scripts/package.py --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with: {name: 'erlu-${{ matrix.target }}', path: 'dist/erlu-*'}
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with: {toolchain: '1.99.0', targets: wasm32-unknown-unknown}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm, cache-dependency-path: web/package-lock.json}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install wasm-tools --version 1.263.0 --locked
+      - run: cargo install trunk --version 0.21.14 --locked
+      - run: npm --prefix web ci
+      - run: npm --prefix web run plugins
+      - run: trunk build --release --locked
+        env: {NO_COLOR: 'true'}
+      - run: npx playwright install --with-deps chromium firefox webkit
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        with: {name: erlu-web, path: dist/web}

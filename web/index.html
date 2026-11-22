@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#1a1a1a"><title>erlu IDEF0 editor</title>
+<link data-trunk rel="rust" href="../crates/erlu-app/Cargo.toml" data-bin="erlu" data-wasm-opt="0" data-bindgen-target="web">
+<link data-trunk rel="copy-file" href="runtime.js"><link data-trunk rel="copy-file" href="plugin-worker.js"><link data-trunk rel="copy-file" href="sw.js"><link data-trunk rel="copy-file" href="manifest.webmanifest"><link data-trunk rel="copy-dir" href="sdk"><link data-trunk rel="copy-dir" href="../plugins/colors/dist" data-target-path="plugins/colors/dist"><link data-trunk rel="copy-file" href="../plugins/colors/plugin.json" data-target-path="plugins/colors">
+<link data-trunk rel="copy-file" href="../assets/icons/erlu.png"><link rel="icon" href="./erlu.png" type="image/png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#1a1a1a}canvas{width:100%;height:100%;display:block}#loading{position:absolute;color:#eee;font:16px sans-serif;left:2rem;top:2rem}#recovery{position:absolute;z-index:9;background:#fff;color:#111;padding:1rem;top:1rem;left:1rem;font:14px sans-serif}button{margin:.3rem}</style></head>
+<body><div id="loading">Loading erlu…</div><canvas id="erlu" tabindex="0"></canvas>
+<script type="module">
+import {createRuntime} from './runtime.js';
+window.erluRuntime = createRuntime();
+let started=false;
+async function start(){
+ if(started||!window.wasmBindings)return;
+ started=true;
+ try {const {WebHandle}=window.wasmBindings;const handle=new WebHandle();await handle.start(document.getElementById('erlu'));window.erluRuntime.attach(handle);document.getElementById('loading').remove();}
+ catch(error){document.getElementById('loading').textContent=String(error);}
+}
+addEventListener('TrunkApplicationStarted',start,{once:true});
+start();
+</script></body></html>

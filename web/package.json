@@ -1,0 +1,14 @@
+{
+  "name": "erlu-web-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "plugins": "node build-plugin.mjs",
+    "test": "playwright test",
+    "check": "node --check runtime.js && node --check plugin-worker.js && node --check sdk/erlu-agent.js"
+  },
+  "devDependencies": {
+    "@bytecodealliance/jco": "1.16.1",
+    "@playwright/test": "1.64.1"
+  }
+}

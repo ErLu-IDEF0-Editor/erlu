@@ -1,10 +1,9 @@
 [Desktop Entry]
 Type=Application
 Name=erlu IDEF0 editor
-Comment=erlu IDEF0 diagram editor
-Exec=erlu_idef0_editor %f
+Comment=IDEF0 modelling with AI connectors
+Exec=erlu %f
+Icon=erlu
 Terminal=false
 Categories=Office;Graphics;
-MimeType=application/x-idef0+json;
-StartupNotify=true
-Icon=erlu
+MimeType=application/x-erlu-idef0;

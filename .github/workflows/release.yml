@@ -1,0 +1,44 @@
+name: Release bundles
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+  bundle:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Bundle static web and collect native archives
+        run: |
+          python3 - <<'PY'
+          import hashlib, pathlib, shutil
+          root = pathlib.Path('artifacts')
+          out = pathlib.Path('release')
+          out.mkdir()
+          for folder in root.glob('erlu-*'):
+              if folder.name == 'erlu-web':
+                  continue
+              for archive in folder.rglob('*'):
+                  if archive.is_file() and (archive.name.endswith('.zip') or archive.name.endswith('.tar.gz')):
+                      shutil.copy2(archive, out / archive.name)
+          web = root / 'erlu-web'
+          assert (web / 'index.html').is_file(), 'Missing web build'
+          shutil.make_archive(str(out / 'erlu-web'), 'zip', web)
+          files = sorted(out.iterdir())
+          assert len(files) == 5, f'Expected four desktop archives and one web archive: {files}'
+          (out / 'SHA256SUMS').write_text(''.join(
+              f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in files
+          ))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: erlu-release-bundles
+          path: release/
+          if-no-files-found: error

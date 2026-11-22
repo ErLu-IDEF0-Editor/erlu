@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><title>erlu agent example</title>
+<p>Open this page through the same web server. In the editor AI menu, enable access and enter this page's origin.</p><button id="connect">Create a function through the agent</button><pre id="result"></pre><iframe id="editor" src="../index.html" style="width:100%;height:75vh;border:0"></iframe>
+<script type="module">
+import {connect} from './erlu-agent.js';
+document.getElementById('connect').onclick=async()=>{try{const agent=await connect(document.getElementById('editor').contentWindow,location.origin);const state=await agent.call('document_state');const result=await agent.call('block_create',{pos:{x:0,y:0},title:'Model a process'},state.revision);document.getElementById('result').textContent=JSON.stringify(result,null,2);agent.close();}catch(error){document.getElementById('result').textContent=error.message;}};
+</script>

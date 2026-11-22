@@ -1,0 +1,10 @@
+import {execFileSync} from 'node:child_process';
+import {mkdirSync,copyFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {resolve} from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const targetDir=resolve(root,process.env.CARGO_TARGET_DIR??'plugins/colors/target');
+mkdirSync(`${root}plugins/colors/dist`,{recursive:true});
+execFileSync('cargo',['build','--manifest-path',`${root}plugins/colors/Cargo.toml`,'--target','wasm32-unknown-unknown','--release','--locked'],{cwd:root,stdio:'inherit',env:{...process.env,CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:'-C link-arg=--max-memory=33554432'}});
+execFileSync('wasm-tools',['component','new',`${targetDir}/wasm32-unknown-unknown/release/erlu_colors.wasm`,'-o',`${root}plugins/colors/dist/colors.wasm`],{stdio:'inherit'});
+execFileSync(process.execPath,[fileURLToPath(new URL('node_modules/@bytecodealliance/jco/src/jco.js',import.meta.url)),'transpile',`${root}plugins/colors/dist/colors.wasm`,'--name','colors','-o',`${root}plugins/colors/dist`,'--no-typescript'],{stdio:'inherit'});

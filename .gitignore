@@ -1,0 +1,13 @@
+/target/
+/build/
+/dist/
+/web/dist/
+/web/node_modules/
+/plugins/colors/target/
+.DS_Store
+/web/test-results/
+/web/playwright-report/
+/plugins/colors/dist/
+__pycache__/
+/tmp/
+/output/

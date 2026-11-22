@@ -1,74 +1,52 @@
-{ pkgs ? import <nixpkgs> {}
-, buildColorsPlugin ? true
-}:
-
+{ pkgs ? import <nixpkgs> {} }:
 let
-  inherit (pkgs) lib stdenv cmake pkg-config;
-  qt = pkgs.qt6;
-in
-stdenv.mkDerivation rec {
-  pname = "erlu_idef0_editor";
-  version = "1.0.1";
-
+  inherit (pkgs) lib;
+  colors = pkgs.rustPlatform.buildRustPackage {
+    pname = "erlu-colors";
+    version = "0.1.0";
+    src = lib.cleanSourceWith { src = ./plugins/colors; filter = path: type: lib.cleanSourceFilter path type && !(builtins.elem (builtins.baseNameOf path) [ "target" "dist" ]); };
+    cargoLock.lockFile = ./plugins/colors/Cargo.lock;
+    nativeBuildInputs = [ pkgs.wasm-tools pkgs.lld ];
+    CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS = "-C link-arg=--max-memory=33554432";
+    buildPhase = ''
+      runHook preBuild
+      cargo build --release --frozen --target wasm32-unknown-unknown
+      runHook postBuild
+    '';
+    doCheck = false;
+    installPhase = ''
+      mkdir -p $out/dist
+      wasm-tools component new target/wasm32-unknown-unknown/release/erlu_colors.wasm -o $out/dist/colors.wasm
+      cp plugin.json $out/plugin.json
+    '';
+  };
+  runtimeLibraries = with pkgs; [ libGL libxkbcommon wayland libx11 libxcursor libxrandr libxi ];
+in pkgs.rustPlatform.buildRustPackage {
+  pname = "erlu";
+  version = "0.1.0";
   src = lib.cleanSourceWith {
     src = ./.;
     filter = path: type:
-      (lib.cleanSourceFilter path type)
-      && (builtins.baseNameOf path != "build");
+      lib.cleanSourceFilter path type
+      && !(builtins.elem (builtins.baseNameOf path) [ "target" "dist" "tmp" "output" "__pycache__" "node_modules" ".tools" "test-results" "playwright-report" ]);
   };
-
-  nativeBuildInputs = [
-    cmake
-    pkg-config
-    qt.wrapQtAppsHook
-    qt.qttools
-  ];
-
-  buildInputs = [
-    qt.qtbase
-  ];
-
-  configurePhase = ''
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX=$out \
-      -DBUILD_COLORS_PLUGIN=${if buildColorsPlugin then "ON" else "OFF"}
+  cargoLock.lockFile = ./Cargo.lock;
+  nativeBuildInputs = with pkgs; [ pkg-config makeWrapper ];
+  buildInputs = runtimeLibraries;
+  cargoBuildFlags = [ "-p" "erlu" ];
+  cargoTestFlags = [ "-p" "erlu-core" ];
+  postInstall = ''
+    mkdir -p $out/bin/plugins/colors
+    cp -r ${colors}/* $out/bin/plugins/colors/
+    wrapProgram $out/bin/erlu --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibraries}
+    install -Dm644 packaging/linux/erlu-idef0-editor.desktop $out/share/applications/erlu.desktop
+    install -Dm644 packaging/linux/idef0.xml $out/share/mime/packages/erlu.xml
+    install -Dm644 assets/icons/erlu.svg $out/share/icons/hicolor/scalable/apps/erlu.svg
   '';
-
-  buildPhase = ''
-    cmake --build build
-    find . -path "*/translations/*.ts" -print0 | while IFS= read -r -d "" f; do
-      out_path=$(printf '%s\n' "$f" | sed 's/\.ts$/.qm/')
-      lrelease "$f" -qm "$out_path"
-    done
-  '';
-
-  installPhase = ''
-    runHook preInstall
-    cmake --install build --prefix $out
-    # app translations
-    if [ -d translations ]; then
-      mkdir -p $out/share/idef0/translations
-      find translations -maxdepth 1 -type f -name '*.qm' -print0 | xargs -0 -r cp -t $out/share/idef0/translations
-    fi
-    # plugin translations
-    find src/plugins -path "*/translations/*.qm" -print0 | while IFS= read -r -d "" f; do
-      rel="''${f#src/plugins/}"          # e.g., color/translations/colors_en.qm
-      plugdir="''${rel%%/translations/*}" # e.g., color
-      dest="$out/plugins/$plugdir/translations"
-      mkdir -p "$dest"
-      cp "$f" "$dest/"
-    done
-    runHook postInstall
-  '';
-
-  qtWrapperArgs = [
-    "--set" "QT_LOGGING_RULES" "qt.qpa.wayland.textinput=false"
-  ];
-
   meta = with lib; {
-    description = "IDEF0 diagram editor built with Qt 6 Widgets";
+    description = "IDEF0 editor with egui, MCP and portable WASM plugins";
     license = licenses.lgpl3Plus;
-    mainProgram = "erlu_idef0_editor";
-    platforms = platforms.linux;
+    mainProgram = "erlu";
+    platforms = platforms.linux ++ platforms.darwin;
   };
 }

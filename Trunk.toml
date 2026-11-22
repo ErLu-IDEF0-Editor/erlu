@@ -1,0 +1,24 @@
+[build]
+target = "web/index.html"
+dist = "dist/web"
+public_url = "./"
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 8080
+open = false
+
+[[hooks]]
+stage = "post_build"
+command = "python3"
+command_arguments = ["scripts/precache.py"]
+
+# Watch source inputs only: test screenshots and npm/cache writes must not reload an editing tab.
+[watch]
+watch = [
+  "crates", "assets", "Cargo.toml", "Cargo.lock", "Trunk.toml",
+  "web/index.html", "web/runtime.js", "web/plugin-worker.js", "web/sw.js",
+  "web/sdk", "web/manifest.webmanifest",
+  "plugins/colors/src", "plugins/colors/wit", "plugins/colors/plugin.json",
+  "plugins/colors/Cargo.toml", "plugins/colors/Cargo.lock",
+]
