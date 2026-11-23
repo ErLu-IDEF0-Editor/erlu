@@ -3,9 +3,9 @@ use super::*;
 impl ErluApp {
     pub(super) fn menu(&mut self, ui: &mut egui::Ui, snapshot: &Engine) {
         egui::MenuBar::new().ui(ui, |ui| {
-            ui.menu_button(self.tr("File"), |ui| {
+            ui.menu_button(self.ui_text("File"), |ui| {
                 for (label,action) in [("New",0),("Open…",1),("Save",2),("Save As…",3),("Export to PDF…",4),("Export to Markdown…",5),("Export to SVG…",6)] {
-                    if ui.button(self.tr(label)).clicked() {
+                    if ui.button(self.ui_text(label)).clicked() {
                         ui.close();
                         match action {
                             0=>self.request(Pending::New), 1=>self.request(Pending::Open),
@@ -15,84 +15,85 @@ impl ErluApp {
                     }
                 }
             });
-            ui.menu_button(self.tr("Edit"), |ui| {
+            ui.menu_button(self.ui_text("Edit"), |ui| {
                 for (label,command) in [("Undo",Command::Undo{}),("Redo",Command::Redo{}),("Delete",Command::ObjectsDelete{ids:snapshot.view.selection.iter().copied().collect()})] {
-                    if ui.button(self.tr(label)).clicked() {self.execute(command);ui.close();}
+                    if ui.button(self.ui_text(label)).clicked() {self.execute(command);ui.close();}
                 }
-                if ui.button(self.tr("Swap numbers…")).clicked() {self.dialogs.swap=true;ui.close();}
-                if ui.button(self.tr("Call Mechanism add")).clicked() {self.dialogs.call=true;ui.close();}
-                if ui.button(self.tr("Properties…")).clicked() {
+                if ui.button(self.ui_text("Swap numbers…")).clicked() {self.dialogs.swap=true;ui.close();}
+                if ui.button(self.ui_text("Call Mechanism add")).clicked() {self.dialogs.call=true;ui.close();}
+                if ui.button(self.ui_text("Properties…")).clicked() {
                     self.dialogs.metadata=Some(snapshot.document.meta.clone());
                     self.dialogs.state=snapshot.document.diagrams[&snapshot.view.diagram].state;
                     self.dialogs.new_metadata=false;self.dialogs.tab=0;ui.close();
                 }
             });
-            ui.menu_button(self.tr("Tools"), |ui| {
-                if ui.button(self.tr("Validation")).clicked() {
+            ui.menu_button(self.ui_text("Tools"), |ui| {
+                if ui.button(self.ui_text("Validation")).clicked() {
                     if let Some(r)=self.execute(Command::Validate{}) {self.dialogs.report_export=None;self.dialogs.report_confirm=None;self.dialogs.report=Some(self.validation_report(&r.result,snapshot));}
                     ui.close();
                 }
-                if ui.button(self.tr("Calculate Prices")).clicked() {
-                    if let Some(r)=self.execute(Command::CalculatePrices{}) {self.dialogs.report_export=None;self.dialogs.report_confirm=None;self.dialogs.report=Some(format!("{}: {}",self.tr("Updated blocks"),r.result["updated_blocks"]));}
+                if ui.button(self.ui_text("Calculate Prices")).clicked() {
+                    if let Some(r)=self.execute(Command::CalculatePrices{}) {self.dialogs.report_export=None;self.dialogs.report_confirm=None;self.dialogs.report=Some(format!("{}: {}",self.ui_text("Updated blocks"),r.result["updated_blocks"]));}
                     ui.close();
                 }
-                if ui.button(self.tr("Node tree…")).clicked() {self.dialogs.tree=true;ui.close();}
+                if ui.button(self.ui_text("Node tree…")).clicked() {self.dialogs.tree=true;ui.close();}
             });
-            ui.menu_button(self.tr("View"), |ui| {
+            ui.menu_button(self.ui_text("View"), |ui| {
                 for (label,zoom) in [("Fit",1.),("Scale +",snapshot.view.zoom*1.1),("Scale -",snapshot.view.zoom/1.1)] {
-                    if ui.button(self.tr(label)).clicked() {
+                    if ui.button(self.ui_text(label)).clicked() {
                         self.execute(if label=="Fit" {Command::ViewFit{}} else {Command::ViewSet{zoom:Some(zoom.clamp(0.05,40.)),center:None,theme:None}});
                         ui.close();
                     }
                 }
                 for (label,theme) in [("Follow system theme",Theme::System),("Dark mode",Theme::Dark),("Light mode",Theme::Light)] {
-                    if ui.selectable_label(snapshot.view.theme==theme,self.tr(label)).clicked() {
+                    if ui.selectable_label(snapshot.view.theme==theme,self.ui_text(label)).clicked() {
                         self.execute(Command::ViewSet{zoom:None,center:None,theme:Some(theme)});ui.close();
                     }
                 }
                 ui.separator();
-                for (language,label) in [("en","English"),("ru","Русский"),("fr","Français")] {
-                    if ui.selectable_label(self.language==language,label).clicked() {
+                ui.label(self.ui_text("Language"));
+                for (language,label) in localization::LANGUAGES {
+                    if ui.selectable_label(self.language==language,localization::display_text(label)).clicked() {
                         self.language=language.into();self.execute(Command::LanguageSet{language:language.into()});ui.close();
                     }
                 }
             });
             let specs=self.plugin_specs();
-            ui.menu_button(self.tr("Plugins"), |ui| {
-                if ui.button(self.tr("Set item color...")).clicked() {self.dialogs.colors=true;ui.close();}
-                if ui.button(self.tr("Clear item colors")).clicked() {self.plugin_color(snapshot,None);ui.close();}
+            ui.menu_button(self.ui_text("Plugins"), |ui| {
+                if ui.button(self.ui_text("Set item color...")).clicked() {self.dialogs.colors=true;ui.close();}
+                if ui.button(self.ui_text("Clear item colors")).clicked() {self.plugin_color(snapshot,None);ui.close();}
                 for spec in specs {
                     if spec.name.starts_with("plugin_colors_") || spec.input_schema["x-erlu-confirm-only"] == true {continue;}
-                    if ui.button(&spec.description).clicked() {
+                    if ui.button(self.ui_text(&spec.description)).clicked() {
                         let arguments=form_defaults(&spec.input_schema);self.dialogs.plugin=Some(PluginForm{spec,arguments});ui.close();
                     }
                 }
                 #[cfg(not(target_arch="wasm32"))]
-                if ui.button(self.tr("Load plugin…")).clicked() {
-                    if let Some(path)=rfd::FileDialog::new().add_filter("Plugin manifest",&["json"]).pick_file()
+                if ui.button(self.ui_text("Load plugin…")).clicked() {
+                    if let Some(path)=rfd::FileDialog::new().add_filter(self.tr("Plugin manifest"),&["json"]).pick_file()
                         && let Err(e)=self.plugins.lock().unwrap().load(&path) {self.status=e.to_string();}
                     ui.close();
                 }
                 #[cfg(target_arch="wasm32")]
-                if ui.button(self.tr("Load plugin…")).clicked() {crate::web::load_plugin();ui.close();}
+                if ui.button(self.ui_text("Load plugin…")).clicked() {crate::web::load_plugin();ui.close();}
             });
             egui::containers::menu::MenuButton::new("AI")
                 .config(egui::containers::menu::MenuConfig::new().close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside))
                 .ui(ui, |ui| {
                     #[cfg(target_arch="wasm32")]
                     {
-                        let caption=self.tr("Allow agent for this tab");ui.checkbox(&mut self.ai_enabled,caption);
-                        ui.label(self.tr("Allowed origin"));ui.text_edit_singleline(&mut self.ai_origin);
+                        let caption=self.ui_text("Allow agent for this tab");ui.checkbox(&mut self.ai_enabled,caption);
+                        ui.label(self.ui_text("Allowed origin"));ui.text_edit_singleline(&mut self.ai_origin);
                         if !self.ai_enabled {self.web_events.revoke();}
-                        ui.label(self.tr("Connect using the erlu browser SDK"));
+                        ui.label(self.ui_text("Connect using the erlu browser SDK"));
                     }
                     #[cfg(not(target_arch="wasm32"))]
                     {
-                        if self.ai_token.is_empty() {ui.label(self.tr("Start with --mcp to enable MCP"));}
+                        if self.ai_token.is_empty() {ui.label(self.ui_text("Start with --mcp to enable MCP"));}
                         else {
-                            ui.label("MCP: http://127.0.0.1:38479/mcp");ui.label(self.tr("Token"));
+                            ui.label("MCP: http://127.0.0.1:38479/mcp");ui.label(self.ui_text("Token"));
                             let mut token=self.ai_token.clone();ui.add(egui::TextEdit::singleline(&mut token).password(true).interactive(false));
-                            if ui.button(self.tr("Copy connection")).clicked() {
+                            if ui.button(self.ui_text("Copy connection")).clicked() {
                                 ui.ctx().copy_text(json!({"url":"http://127.0.0.1:38479/mcp","headers":{"Authorization":format!("Bearer {}",self.ai_token)}}).to_string());
                             }
                         }

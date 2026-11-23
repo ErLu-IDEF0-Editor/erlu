@@ -4,16 +4,21 @@ impl ErluApp {
     pub(super) fn dialogs(&mut self, ctx: &egui::Context, s: &Engine) {
         if let Some(mut form) = self.dialogs.plugin.take() {
             let mut keep = true;
-            egui::Window::new(&form.spec.description)
+            egui::Window::new(self.ui_text(&form.spec.description))
                 .collapsible(false)
                 .show(ctx, |ui| {
-                    schema_form(ui, &form.spec.input_schema, &mut form.arguments);
+                    schema_form(
+                        ui,
+                        &form.spec.input_schema,
+                        &mut form.arguments,
+                        &self.language,
+                    );
                     ui.horizontal(|ui| {
-                        if ui.button(self.tr("Run")).clicked() {
+                        if ui.button(self.ui_text("Run")).clicked() {
                             self.invoke_registered(&form.spec.name, form.arguments.clone(), s);
                             keep = false;
                         }
-                        if ui.button(self.tr("Cancel")).clicked() {
+                        if ui.button(self.ui_text("Cancel")).clicked() {
                             keep = false;
                         }
                     });
@@ -24,21 +29,21 @@ impl ErluApp {
         }
 
         if self.dialogs.startup {
-            egui::Window::new(self.tr("Welcome"))
+            egui::Window::new(self.ui_text("Welcome"))
                 .collapsible(false)
                 .resizable(false)
                 .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO)
                 .show(ctx, |ui| {
-                    ui.label(self.tr("Start a new diagram or open an existing one?"));
+                    ui.label(self.ui_text("Start a new diagram or open an existing one?"));
                     ui.horizontal(|ui| {
-                        if ui.button(self.tr("Open…")).clicked() {
+                        if ui.button(self.ui_text("Open…")).clicked() {
                             self.open_file();
                         }
-                        if ui.button(self.tr("New")).clicked() {
+                        if ui.button(self.ui_text("New")).clicked() {
                             self.perform(Pending::New);
                             self.dialogs.startup = false;
                         }
-                        if ui.button(self.tr("Cancel")).clicked() {
+                        if ui.button(self.ui_text("Cancel")).clicked() {
                             self.dialogs.startup = false;
                             #[cfg(not(target_arch = "wasm32"))]
                             if !self.has_document {
@@ -50,7 +55,7 @@ impl ErluApp {
         }
         if let Some(mut meta) = self.dialogs.metadata.take() {
             let mut keep = true;
-            egui::Window::new(self.tr(if self.dialogs.new_metadata {
+            egui::Window::new(self.ui_text(if self.dialogs.new_metadata {
                 "Welcome"
             } else {
                 "Properties…"
@@ -64,7 +69,7 @@ impl ErluApp {
                         .enumerate()
                     {
                         if ui
-                            .selectable_label(self.dialogs.tab == i, self.tr(name))
+                            .selectable_label(self.dialogs.tab == i, self.ui_text(name))
                             .clicked()
                         {
                             self.dialogs.tab = i;
@@ -77,22 +82,22 @@ impl ErluApp {
                     .spacing([12., 8.])
                     .show(ui, |ui| match self.dialogs.tab {
                         0 => {
-                            field(ui, &self.tr("Title:"), &mut meta.title);
+                            field(ui, &self.ui_text("Title:"), &mut meta.title);
                             field(
                                 ui,
-                                &self.tr("Model abbreviation:"),
+                                &self.ui_text("Model abbreviation:"),
                                 &mut meta.model_abbreviation,
                             );
-                            field(ui, &self.tr("Model purpose:"), &mut meta.purpose);
-                            field(ui, &self.tr("Model viewpoint:"), &mut meta.viewpoint);
-                            field(ui, &self.tr("Organization:"), &mut meta.organization);
+                            field(ui, &self.ui_text("Model purpose:"), &mut meta.purpose);
+                            field(ui, &self.ui_text("Model viewpoint:"), &mut meta.viewpoint);
+                            field(ui, &self.ui_text("Organization:"), &mut meta.organization);
                             let old = meta.author.clone();
                             let old_initials = old
                                 .split_whitespace()
                                 .filter_map(|s| s.chars().next())
                                 .flat_map(char::to_uppercase)
                                 .collect::<String>();
-                            field(ui, &self.tr("Author:"), &mut meta.author);
+                            field(ui, &self.ui_text("Author:"), &mut meta.author);
                             if meta.author != old
                                 && (meta.initials.is_empty() || meta.initials == old_initials)
                             {
@@ -103,17 +108,25 @@ impl ErluApp {
                                     .flat_map(char::to_uppercase)
                                     .collect();
                             }
-                            field(ui, &self.tr("Author's initials:"), &mut meta.initials);
+                            field(ui, &self.ui_text("Author's initials:"), &mut meta.initials);
                         }
                         1 => {
-                            ui.label(self.tr("Currency:"));
+                            ui.label(self.ui_text("Currency:"));
                             ui.horizontal(|ui| {
                                 ui.text_edit_singleline(&mut meta.currency);
                                 ui.menu_button("▾", |ui| {
-                                    for choice in ["$", "₽", "€", "person-hours"] {
-                                        if ui.button(self.tr(choice)).clicked() {
-                                            meta.currency = choice.into();
-                                            if choice == "person-hours" {
+                                    for (index, choice) in currency::PRESETS.iter().enumerate() {
+                                        if index == 10 {
+                                            ui.separator();
+                                        }
+                                        if ui
+                                            .button(localization::display_text(
+                                                &choice.caption(&self.language),
+                                            ))
+                                            .clicked()
+                                        {
+                                            meta.currency = choice.symbol.into();
+                                            if choice.symbol == "person-hours" {
                                                 meta.currency_placement = "1 ?".into();
                                             }
                                             ui.close();
@@ -122,7 +135,7 @@ impl ErluApp {
                                 });
                             });
                             ui.end_row();
-                            ui.label(self.tr("Symbol placement:"));
+                            ui.label(self.ui_text("Symbol placement:"));
                             egui::ComboBox::from_id_salt("placement")
                                 .selected_text(&meta.currency_placement)
                                 .show_ui(ui, |ui| {
@@ -135,9 +148,9 @@ impl ErluApp {
                                     }
                                 });
                             ui.end_row();
-                            ui.label(self.tr("Time Unit:"));
+                            ui.label(self.ui_text("Time Unit:"));
                             egui::ComboBox::from_id_salt("unit")
-                                .selected_text(self.tr(&meta.time_unit))
+                                .selected_text(self.ui_text(&meta.time_unit))
                                 .show_ui(ui, |ui| {
                                     for v in [
                                         "seconds", "minutes", "hours", "days", "weeks", "months",
@@ -146,14 +159,14 @@ impl ErluApp {
                                         ui.selectable_value(
                                             &mut meta.time_unit,
                                             v.into(),
-                                            self.tr(v),
+                                            self.ui_text(v),
                                         );
                                     }
                                 });
                             ui.end_row();
                         }
                         2 => {
-                            ui.label(self.tr("Size:"));
+                            ui.label(self.ui_text("Size:"));
                             egui::ComboBox::from_id_salt("size")
                                 .selected_text(&meta.page_size)
                                 .show_ui(ui, |ui| {
@@ -162,9 +175,9 @@ impl ErluApp {
                                     }
                                 });
                             ui.end_row();
-                            ui.label(self.tr("Type:"));
+                            ui.label(self.ui_text("Type:"));
                             egui::ComboBox::from_id_salt("orientation")
-                                .selected_text(self.tr(if meta.portrait {
+                                .selected_text(self.ui_text(if meta.portrait {
                                     "Portrait"
                                 } else {
                                     "Landscape"
@@ -173,18 +186,18 @@ impl ErluApp {
                                     ui.selectable_value(
                                         &mut meta.portrait,
                                         false,
-                                        self.tr("Landscape"),
+                                        self.ui_text("Landscape"),
                                     );
                                     ui.selectable_value(
                                         &mut meta.portrait,
                                         true,
-                                        self.tr("Portrait"),
+                                        self.ui_text("Portrait"),
                                     );
                                 });
                             ui.end_row();
-                            ui.checkbox(&mut meta.with_header, self.tr("With header"));
+                            ui.checkbox(&mut meta.with_header, self.ui_text("With header"));
                             ui.end_row();
-                            ui.checkbox(&mut meta.with_footer, self.tr("With footer"));
+                            ui.checkbox(&mut meta.with_footer, self.ui_text("With footer"));
                             ui.end_row();
                         }
                         _ => {
@@ -204,7 +217,7 @@ impl ErluApp {
                                 ("Title override:", &mut meta.footer_title_override),
                                 ("Number override:", &mut meta.footer_number_override),
                             ] {
-                                field(ui, &self.tr(label), value);
+                                field(ui, &self.ui_text(label), value);
                             }
                             for (label, state) in [
                                 ("Working", DiagramState::Working),
@@ -212,7 +225,7 @@ impl ErluApp {
                                 ("Recommended", DiagramState::Recommended),
                                 ("Publication", DiagramState::Publication),
                             ] {
-                                let caption = self.tr(label);
+                                let caption = self.ui_text(label);
                                 ui.radio_value(&mut self.dialogs.state, state, caption);
                                 ui.end_row();
                             }
@@ -220,7 +233,7 @@ impl ErluApp {
                     });
                 ui.separator();
                 ui.horizontal(|ui| {
-                    if ui.button(self.tr("OK")).clicked() {
+                    if ui.button(self.ui_text("OK")).clicked() {
                         #[cfg(not(target_arch = "wasm32"))]
                         if self.dialogs.new_metadata && self.has_document {
                             match std::env::var_os("ERLU_EXECUTABLE")
@@ -263,7 +276,7 @@ impl ErluApp {
                             }
                         }
                     }
-                    if ui.button(self.tr("Cancel")).clicked() {
+                    if ui.button(self.ui_text("Cancel")).clicked() {
                         keep = false;
                     }
                 });
@@ -276,12 +289,12 @@ impl ErluApp {
             let mut keep = true;
             let mut has_price = block.price.is_some();
             let mut price = block.price.unwrap_or(0.);
-            egui::Window::new(self.tr("Edit block"))
+            egui::Window::new(self.ui_text("Edit block"))
                 .collapsible(false)
                 .show(ctx, |ui| {
-                    ui.label(self.tr("Title:"));
+                    ui.label(self.ui_text("Title:"));
                     ui.add(egui::TextEdit::multiline(&mut block.title).desired_rows(3));
-                    ui.checkbox(&mut has_price, self.tr("Set price"));
+                    ui.checkbox(&mut has_price, self.ui_text("Set price"));
                     ui.add_enabled(
                         has_price,
                         egui::DragValue::new(&mut price)
@@ -291,7 +304,7 @@ impl ErluApp {
                     );
                     block.price = has_price.then_some(price);
                     ui.horizontal(|ui| {
-                        if ui.button(self.tr("OK")).clicked() {
+                        if ui.button(self.ui_text("OK")).clicked() {
                             self.execute(Command::BlockUpdate {
                                 id: block.id,
                                 title: Some(block.title.clone()),
@@ -300,7 +313,7 @@ impl ErluApp {
                             });
                             keep = false;
                         }
-                        if ui.button(self.tr("Cancel")).clicked() {
+                        if ui.button(self.ui_text("Cancel")).clicked() {
                             keep = false;
                         }
                     });
@@ -311,19 +324,19 @@ impl ErluApp {
         }
         if let Some(mut arrow) = self.dialogs.arrow.take() {
             let mut keep = true;
-            egui::Window::new(self.tr("Arrow label"))
+            egui::Window::new(self.ui_text("Arrow label"))
                 .collapsible(false)
                 .show(ctx, |ui| {
                     if arrow.interface.is_none() {
-                        field(ui, &self.tr("Label:"), &mut arrow.label);
+                        field(ui, &self.ui_text("Label:"), &mut arrow.label);
                     } else {
                         ui.label(&arrow.label);
                     }
-                    ui.checkbox(&mut arrow.label_hidden, self.tr("Hide label"));
-                    ui.checkbox(&mut arrow.from.tunneled, self.tr("Tunnel source"));
-                    ui.checkbox(&mut arrow.to.tunneled, self.tr("Tunnel target"));
+                    ui.checkbox(&mut arrow.label_hidden, self.ui_text("Hide label"));
+                    ui.checkbox(&mut arrow.from.tunneled, self.ui_text("Tunnel source"));
+                    ui.checkbox(&mut arrow.to.tunneled, self.ui_text("Tunnel target"));
                     ui.horizontal(|ui| {
-                        if ui.button(self.tr("OK")).clicked() {
+                        if ui.button(self.ui_text("OK")).clicked() {
                             self.execute(Command::ArrowUpdate {
                                 id: arrow.id,
                                 from: Some(arrow.from.clone()),
@@ -335,7 +348,7 @@ impl ErluApp {
                             });
                             keep = false;
                         }
-                        if ui.button(self.tr("Cancel")).clicked() {
+                        if ui.button(self.ui_text("Cancel")).clicked() {
                             keep = false;
                         }
                     });
@@ -346,7 +359,7 @@ impl ErluApp {
         }
         if self.dialogs.tree {
             let mut open = true;
-            egui::Window::new(self.tr("Node tree…"))
+            egui::Window::new(self.ui_text("Node tree…"))
                 .open(&mut open)
                 .default_width(400.)
                 .show(ctx, |ui| {
@@ -354,31 +367,31 @@ impl ErluApp {
                 });
             self.dialogs.tree = open;
         }
-        if let Some(mut report) = self.dialogs.report.take() {
+        if let Some(report) = self.dialogs.report.take() {
             let mut open = true;
             let mut apply = None;
-            egui::Window::new(self.tr("Report"))
+            egui::Window::new(self.ui_text("Report"))
                 .open(&mut open)
                 .default_size([650., 450.])
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
                         if self.dialogs.report_confirm.is_some()
-                            && ui.button(self.tr("Apply previewed changes")).clicked()
+                            && ui.button(self.ui_text("Apply previewed changes")).clicked()
                         {
                             apply = self.dialogs.report_confirm.take();
                         }
-                        if ui.button(self.tr("Copy report")).clicked() {
+                        if ui.button(self.ui_text("Copy report")).clicked() {
                             ui.ctx().copy_text(report.clone());
                         }
                         if let Some((name, mime)) = self.dialogs.report_export.clone()
-                            && ui.button(self.tr("Save report…")).clicked()
+                            && ui.button(self.ui_text("Save report…")).clicked()
                         {
                             self.save_report(name, mime, &report);
                         }
                     });
                     egui::ScrollArea::both().show(ui, |ui| {
                         ui.add(
-                            egui::TextEdit::multiline(&mut report)
+                            egui::TextEdit::multiline(&mut localization::display_text(&report))
                                 .desired_width(f32::INFINITY)
                                 .interactive(false),
                         );
@@ -401,22 +414,22 @@ impl ErluApp {
         }
         if self.dialogs.export {
             let mut open = true;
-            egui::Window::new(self.tr("Export to PDF…"))
+            egui::Window::new(self.ui_text("Export to PDF…"))
                 .open(&mut open)
                 .show(ctx, |ui| {
                     {
-                        let label = self.tr("All diagrams");
+                        let label = self.ui_text("All diagrams");
                         ui.checkbox(&mut self.dialogs.all, label);
                     }
                     {
-                        let label = self.tr("Page numbers");
+                        let label = self.ui_text("Page numbers");
                         ui.checkbox(&mut self.dialogs.numbers, label);
                     }
                     {
-                        let label = self.tr("Force light theme");
+                        let label = self.ui_text("Force light theme");
                         ui.checkbox(&mut self.dialogs.light, label);
                     }
-                    if ui.button(self.tr("Export")).clicked() {
+                    if ui.button(self.ui_text("Export")).clicked() {
                         self.export("pdf");
                         self.dialogs.export = false;
                     }
@@ -425,11 +438,11 @@ impl ErluApp {
         }
         if self.dialogs.colors {
             let mut open = true;
-            egui::Window::new(self.tr("Select item color"))
+            egui::Window::new(self.ui_text("Select item color"))
                 .open(&mut open)
                 .show(ctx, |ui| {
                     ui.color_edit_button_srgb(&mut self.dialogs.color);
-                    if ui.button(self.tr("OK")).clicked() {
+                    if ui.button(self.ui_text("OK")).clicked() {
                         let [r, g, b] = self.dialogs.color;
                         self.plugin_color(s, Some(format!("#{r:02x}{g:02x}{b:02x}")));
                         self.dialogs.colors = false;
@@ -439,7 +452,7 @@ impl ErluApp {
         }
         if self.dialogs.call {
             let mut open = true;
-            egui::Window::new(self.tr("Call Mechanism"))
+            egui::Window::new(self.ui_text("Call Mechanism"))
                 .open(&mut open)
                 .show(ctx, |ui| {
                     if s.view.selection.len() != 1
@@ -447,11 +460,11 @@ impl ErluApp {
                             .block(*s.view.selection.first().unwrap_or(&0))
                             .is_none()
                     {
-                        ui.label(self.tr("Select exactly one block to add a call mechanism."));
+                        ui.label(self.ui_text("Select exactly one block to add a call mechanism."));
                         return;
                     }
                     let block = *s.view.selection.first().unwrap();
-                    ui.label(self.tr("Choose target block:"));
+                    ui.label(self.ui_text("Choose target block:"));
                     for b in s.document.diagrams[&s.view.diagram]
                         .blocks
                         .values()
@@ -463,7 +476,7 @@ impl ErluApp {
                             format!("{} — {}", b.number, b.title),
                         );
                     }
-                    if ui.button(self.tr("OK")).clicked()
+                    if ui.button(self.ui_text("OK")).clicked()
                         && let Some(reference) = self.dialogs.call_ref
                     {
                         self.pending_call = Some((block, reference));
@@ -476,7 +489,7 @@ impl ErluApp {
         }
         if self.dialogs.swap {
             let mut open = true;
-            egui::Window::new(self.tr("Swap numbers…"))
+            egui::Window::new(self.ui_text("Swap numbers…"))
                 .open(&mut open)
                 .show(ctx, |ui| {
                     for i in 0..2 {
@@ -497,7 +510,7 @@ impl ErluApp {
                                 }
                             });
                     }
-                    if ui.button(self.tr("OK")).clicked()
+                    if ui.button(self.ui_text("OK")).clicked()
                         && let [Some(first), Some(second)] = self.dialogs.swap_pair
                     {
                         self.execute(Command::NumbersSwap { first, second });
@@ -507,20 +520,20 @@ impl ErluApp {
             self.dialogs.swap &= open;
         }
         if self.pending.is_some() {
-            egui::Window::new(self.tr("Unsaved changes"))
+            egui::Window::new(self.ui_text("Unsaved changes"))
                 .collapsible(false)
                 .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO)
                 .show(ctx, |ui| {
-                    ui.label(self.tr("Save changes before continuing?"));
+                    ui.label(self.ui_text("Save changes before continuing?"));
                     ui.horizontal(|ui| {
-                        if ui.button(self.tr("Save")).clicked() {
+                        if ui.button(self.ui_text("Save")).clicked() {
                             self.save(false);
                         }
-                        if ui.button(self.tr("Discard")).clicked() {
+                        if ui.button(self.ui_text("Discard")).clicked() {
                             let p = self.pending.take().unwrap();
                             self.perform(p);
                         }
-                        if ui.button(self.tr("Cancel")).clicked() {
+                        if ui.button(self.ui_text("Cancel")).clicked() {
                             self.pending = None;
                         }
                     });
@@ -533,7 +546,7 @@ impl ErluApp {
             .id_salt(d)
             .default_open(true)
             .show(ui, |ui| {
-                if ui.button(self.tr("Open diagram")).clicked() {
+                if ui.button(self.ui_text("Open diagram")).clicked() {
                     self.execute(Command::Navigate { diagram: d });
                 }
                 for b in s.document.diagrams[&d].blocks.values() {

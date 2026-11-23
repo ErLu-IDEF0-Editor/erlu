@@ -66,7 +66,20 @@ jobs:
         env: {NO_COLOR: 'true'}
       - run: npx playwright install --with-deps chromium firefox webkit
         working-directory: web
-      - run: npm test
+      - name: Run browser tests with software graphics
+        run: xvfb-run -a --server-args="-screen 0 1600x1200x24 -dpi 96" npm test
         working-directory: web
+        env:
+          ERLU_FIREFOX_HEADED: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+      - name: Upload browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: erlu-browser-test-results
+          path: |
+            web/test-results/
+            web/playwright-report/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with: {name: erlu-web, path: dist/web}

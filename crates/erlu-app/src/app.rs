@@ -107,7 +107,6 @@ pub struct ErluApp {
     tx: mpsc::Sender<FileEvent>,
     rx: mpsc::Receiver<FileEvent>,
     language: String,
-    translations: Value,
     allow_close: bool,
     pending_call: Option<(Id, Id)>,
     pub ai_enabled: bool,
@@ -129,18 +128,31 @@ impl ErluApp {
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
             "erlu".into(),
-            egui::FontData::from_static(render::FONT).into(),
+            egui::FontData::from_static(render::DISPLAY_FONT).into(),
         );
         fonts
             .families
             .entry(egui::FontFamily::Proportional)
             .or_default()
             .insert(0, "erlu".into());
+        fonts.font_data.insert(
+            "cjk".into(),
+            egui::FontData::from_static(render::CJK_FONT).into(),
+        );
+        fonts
+            .families
+            .entry(egui::FontFamily::Monospace)
+            .or_default()
+            .push("erlu".into());
+        for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
+            fonts.families.entry(family).or_default().push("cjk".into());
+        }
         cc.egui_ctx.set_fonts(fonts);
         let (tx, rx) = mpsc::channel();
         let language = cc
             .storage
             .and_then(|s| s.get_string("language"))
+            .filter(|lang| localization::supported(lang))
             .unwrap_or_else(default_language);
         let theme = cc
             .storage
@@ -170,7 +182,6 @@ impl ErluApp {
             tx,
             rx,
             language,
-            translations: serde_json::from_str(include_str!("../../../assets/i18n.json")).unwrap(),
             allow_close: false,
             pending_call: None,
             ai_enabled: false,
@@ -192,10 +203,10 @@ impl ErluApp {
         self.file_name = name;
     }
     pub fn tr(&self, s: &str) -> String {
-        self.translations[&self.language][s]
-            .as_str()
-            .unwrap_or(s)
-            .to_owned()
+        localization::translate(&self.language, s)
+    }
+    fn ui_text(&self, s: &str) -> String {
+        localization::display_text(&self.tr(s))
     }
     fn execute(&mut self, c: Command) -> Option<Response> {
         let result = self.shared.lock().unwrap().dispatch(c, None);
@@ -522,9 +533,9 @@ impl eframe::App for ErluApp {
             "{}{} — erlu IDEF0",
             if s.dirty() { "*" } else { "" },
             if self.file_name.is_empty() {
-                "Untitled"
+                self.tr("Untitled")
             } else {
-                &self.file_name
+                self.file_name.clone()
             }
         )));
         egui::Panel::top("menu").show(ui, |ui| {
@@ -542,11 +553,14 @@ impl eframe::App for ErluApp {
                 ));
                 ui.separator();
                 if self.status.is_empty() {
-                    ui.label(self.tr(
+                    ui.label(self.ui_text(
                         "RMB: add block. LMB on port: drag arrow. Double click block: rename.",
                     ));
                 } else {
-                    ui.colored_label(Color32::from_rgb(200, 100, 60), &self.status);
+                    ui.colored_label(
+                        Color32::from_rgb(200, 100, 60),
+                        localization::display_text(&self.status),
+                    );
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(format!("{:.0}%", s.view.zoom * 100.));
@@ -691,18 +705,17 @@ fn hit_endpoint(s: &Engine, p: Point, tolerance: f64) -> Option<Endpoint> {
 }
 fn default_language() -> String {
     #[cfg(not(target_arch = "wasm32"))]
-    let locale = std::env::var("LANG").unwrap_or_default();
+    let locale = ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .into_iter()
+        .find_map(|key| std::env::var(key).ok().filter(|v| !v.is_empty()))
+        .unwrap_or_default();
     #[cfg(target_arch = "wasm32")]
     let locale = js_sys::Reflect::get(&web_sys::window().unwrap(), &"navigator".into())
         .ok()
         .and_then(|v| js_sys::Reflect::get(&v, &"language".into()).ok())
         .and_then(|v| v.as_string())
         .unwrap_or_default();
-    locale
-        .get(..2)
-        .filter(|s| ["en", "ru", "fr"].contains(s))
-        .unwrap_or("en")
-        .into()
+    localization::locale_language(&locale).into()
 }
 
 fn form_defaults(schema: &Value) -> Value {
@@ -725,14 +738,15 @@ fn form_defaults(schema: &Value) -> Value {
     }
     Value::Object(args)
 }
-fn schema_form(ui: &mut egui::Ui, schema: &Value, args: &mut Value) {
+fn schema_form(ui: &mut egui::Ui, schema: &Value, args: &mut Value, language: &str) {
+    let tr = |s: &str| localization::display_text(&localization::translate(language, s));
     if let Some(props) = schema["properties"].as_object() {
         for (key, spec) in props {
             ui.push_id(key, |ui| {
-                let label = spec["title"].as_str().unwrap_or(key);
+                let label = tr(spec["title"].as_str().unwrap_or(key));
                 if let Some(options) = spec["enum"].as_array() {
                     egui::ComboBox::from_label(label)
-                        .selected_text(args[key].to_string())
+                        .selected_text(tr(args[key].as_str().unwrap_or(&args[key].to_string())))
                         .show_ui(ui, |ui| {
                             for option in options {
                                 ui.selectable_value(
@@ -740,7 +754,7 @@ fn schema_form(ui: &mut egui::Ui, schema: &Value, args: &mut Value) {
                                     option.clone(),
                                     option
                                         .as_str()
-                                        .map(str::to_string)
+                                        .map(tr)
                                         .unwrap_or_else(|| option.to_string()),
                                 );
                             }

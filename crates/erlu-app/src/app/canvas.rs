@@ -184,7 +184,7 @@ impl ErluApp {
                         } else {
                             egui::Align2::LEFT_CENTER
                         },
-                        text,
+                        localization::display_text(&text),
                         egui::FontId::proportional((size as f32 * scale).max(5.)),
                         parse_color(&color),
                     );

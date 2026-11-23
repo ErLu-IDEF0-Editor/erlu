@@ -12,3 +12,6 @@ thiserror.workspace = true
 svg2pdf = "0.13"
 pdf-writer = "0.12"
 ttf-parser = "0.25"
+
+arabic_reshaper = "0.4.2"
+unicode-bidi = "0.3"

@@ -11,12 +11,16 @@
 <script type="module">
 import {createRuntime} from './runtime.js';
 window.erluRuntime = createRuntime();
+const initialLanguage=(navigator.language??'en').split(/[-_]/)[0];
+const loading=document.getElementById('loading');
+loading.textContent=({en:'Loading erlu…',ru:'Загрузка erlu…',fr:'Chargement de erlu…',es:'Cargando erlu…',ar:'جار تحميل erlu…',zh:'正在加载 erlu…'})[initialLanguage]??'Loading erlu…';
+loading.dir=initialLanguage==='ar'?'rtl':'ltr';
 let started=false;
 async function start(){
  if(started||!window.wasmBindings)return;
  started=true;
  try {const {WebHandle}=window.wasmBindings;const handle=new WebHandle();await handle.start(document.getElementById('erlu'));window.erluRuntime.attach(handle);document.getElementById('loading').remove();}
- catch(error){document.getElementById('loading').textContent=String(error);}
+ catch(error){window.erluStartupError=String(error);document.getElementById('loading').textContent=String(error);}
 }
 addEventListener('TrunkApplicationStarted',start,{once:true});
 start();

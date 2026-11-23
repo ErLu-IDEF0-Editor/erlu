@@ -56,3 +56,6 @@ read the current state first. The example embedding page is `/sdk/example.html`.
 The bridge is for an external agent in a parent page or extension. A remote agent
 cannot directly address an arbitrary local tab; it needs an extension/embedding
 adapter. Remote MCP hosting and an integrated AI chat are outside this release.
+
+Interface locales: `language_set` accepts `en`, `ru`, `fr`, `es`, `ar`, and `zh`.
+This changes view state, not document content. See [localization](localization.md).

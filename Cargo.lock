@@ -89,6 +89,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "arabic_reshaper"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb963411bc62b3888e69ad0d821ac03a3176ec7d74c2096bb5555a4cc419545b"
+
+[[package]]
 name = "arbitrary"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1135,6 +1141,7 @@ dependencies = [
 name = "erlu-core"
 version = "0.1.0"
 dependencies = [
+ "arabic_reshaper",
  "pdf-writer",
  "schemars",
  "serde",
@@ -1142,6 +1149,7 @@ dependencies = [
  "svg2pdf",
  "thiserror 2.0.21",
  "ttf-parser",
+ "unicode-bidi",
 ]
 
 [[package]]

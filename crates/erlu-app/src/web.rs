@@ -119,6 +119,9 @@ impl WebHandle {
             )
             .await
     }
+    pub fn translate(&self, text: &str) -> String {
+        localization::translate(&self.shared.lock().unwrap().view.language, text)
+    }
     pub fn actions(&self) -> String {
         let mut specs = action_specs();
         specs.extend(host_action_specs());

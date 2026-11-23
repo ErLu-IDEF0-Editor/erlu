@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
+pub const DISPLAY_FONT: &[u8] = include_bytes!("../../../assets/fonts/ErluDisplay.ttf");
+pub const CJK_FONT: &[u8] = include_bytes!("../../../assets/fonts/NotoSansSC.ttf");
 pub const FONT: &[u8] = include_bytes!("../../../assets/fonts/DejaVuSans.ttf");
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -593,14 +595,21 @@ pub fn scene(doc: &Document, d: Id, dark: bool, page: Option<usize>) -> Scene {
 }
 fn text_extent(text: &str, size: f64) -> Point {
     let face = ttf_parser::Face::parse(FONT, 0).expect("Bundled font");
-    let units = face.units_per_em() as f64;
+    let cjk = ttf_parser::Face::parse(CJK_FONT, 0).expect("Bundled CJK font");
     let width = text
         .chars()
-        .filter_map(|c| face.glyph_index(c))
-        .map(|g| face.glyph_hor_advance(g).unwrap_or(0) as f64)
+        .filter_map(|c| {
+            let f = if face.glyph_index(c).is_some() {
+                &face
+            } else {
+                &cjk
+            };
+            f.glyph_index(c)
+                .and_then(|g| f.glyph_hor_advance(g))
+                .map(|advance| advance as f64 / f.units_per_em() as f64)
+        })
         .sum::<f64>()
-        * size
-        / units;
+        * size;
     Point::new(width, size * 1.2)
 }
 pub fn arrow_label_position(path: &[Point], a: &Arrow) -> Point {
@@ -669,8 +678,7 @@ pub fn scene_localized(
 ) -> Scene {
     let mut result = scene(doc, d, dark, page);
     if language != "en" {
-        let all: serde_json::Value =
-            serde_json::from_str(include_str!("../../../assets/i18n.json")).unwrap();
+        let all = crate::localization::catalog();
         for primitive in &mut result.primitives {
             if let Primitive::Text { text, .. } = primitive {
                 if let Some(v) = all[language][text.as_str()].as_str() {
@@ -783,6 +791,7 @@ pub fn pdf_localized(
     // PDF backend is shared by native and wasm; no system font or filesystem lookup.
     let mut options = svg2pdf::usvg::Options::default();
     options.fontdb_mut().load_font_data(FONT.to_vec());
+    options.fontdb_mut().load_font_data(CJK_FONT.to_vec());
     let mut pdf = pdf_writer::Pdf::new();
     let catalog = pdf_writer::Ref::new(1);
     let pages = pdf_writer::Ref::new(2);

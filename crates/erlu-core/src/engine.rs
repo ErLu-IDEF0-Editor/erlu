@@ -652,10 +652,10 @@ impl Engine {
                 Ok(json!({}))
             }
             Command::LanguageSet { language } => {
-                if !["en", "ru", "fr"].contains(&language.as_str()) {
+                if !crate::localization::supported(&language) {
                     return Err(error(
                         "invalid_arguments",
-                        "Supported languages: en, ru, fr",
+                        "Supported languages: en, ru, fr, es, ar, zh",
                     ));
                 }
                 self.view.language = language;

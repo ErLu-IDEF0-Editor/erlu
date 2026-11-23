@@ -1,7 +1,9 @@
 //! Platform-independent document, transactions, notation and presentation.
 pub mod actions;
+pub mod currency;
 pub mod engine;
 pub mod format;
+pub mod localization;
 pub mod model;
 pub mod render;
 pub mod validation;
