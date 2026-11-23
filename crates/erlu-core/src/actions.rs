@@ -252,3 +252,12 @@ pub fn host_action_specs() -> Vec<ActionSpec> {
         },
     ]
 }
+
+/// An explicitly confirmed follow-up to a plugin's read-only preview.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PluginConfirmation {
+    pub name: String,
+    pub arguments: Value,
+    pub expected_revision: u64,
+}

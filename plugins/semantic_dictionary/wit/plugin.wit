@@ -1,0 +1,7 @@
+package erlu:plugin@1.0.0;
+
+/// Pure plugin invocation. Context is a versioned JSON snapshot; returned edits
+/// are proposals. The host validates and applies the entire transaction.
+world plugin {
+    export run: func(action: string, context: string) -> result<string, string>;
+}

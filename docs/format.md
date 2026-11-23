@@ -47,3 +47,7 @@ Extension entries use `{version: <positive integer>, data: <JSON>}` under the pl
 namespace. Model-affecting extensions must declare a required capability and cannot
 be silently opened by a reader lacking it. View state, history and connection tokens
 are not part of the document. UI locale never changes serialized enum values.
+
+Model metadata includes descriptive `model_abbreviation`, `purpose` and `viewpoint`
+strings in addition to `title`. Older files may omit these fields. Semantic
+[validation](validation.md) diagnoses missing statements without rejecting the file.

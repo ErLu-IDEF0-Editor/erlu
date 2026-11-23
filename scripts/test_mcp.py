@@ -36,7 +36,29 @@ try:
  tool('undo')
  restored=tool('object_get',{'id':new})['structuredContent']
  assert restored['result']['object']['color'] is None
- print(f'MCP stdio: {len(names)} tools, edits, conflicts, real WASM plugin, undo OK')
+ assert 'plugin_responsibility_map_role_add' in names,names
+ assert not tool('plugin_responsibility_map_role_add',{'name':'Operations'}).get('isError')
+ for category in ['R','A']:
+  assigned=tool('plugin_responsibility_map_assignment_set',{'role':'Operations','responsibility':category})
+  assert not assigned.get('isError'),assigned
+ matrix=tool('plugin_responsibility_map_matrix_export',{'scope':'selection','format':'csv'})
+ assert not matrix.get('isError'),matrix
+ assert 'R/A' in matrix['structuredContent']['result']['text'],matrix
+ responsibility=tool('plugin_responsibility_map_validate',{'scope':'selection'})
+ assert responsibility['structuredContent']['result']['valid'],responsibility
+ assert 'plugin_semantic_dictionary_concept_add' in names,names
+ assert not tool('plugin_semantic_dictionary_concept_add',{'code':'request','term':'Customer request','definition':'A customer request'}).get('isError')
+ arrow=tool('arrow_create',{'from':{'anchor':{'kind':'boundary','port':'input','t':0.5}},'to':{'anchor':{'kind':'block','id':new,'port':'input','t':0.5}},'label':'req'})['structuredContent']['result']['id']
+ tool('selection_set',{'ids':[arrow]})
+ assert not tool('plugin_semantic_dictionary_binding_set',{'code':'request'}).get('isError')
+ preview=tool('plugin_semantic_dictionary_normalize_preview',{'scope':'selection'})
+ assert not preview.get('isError'),preview
+ apply=preview['structuredContent']['result']['confirm_action']
+ args={**apply['arguments'],'expected_revision':apply['expected_revision']}
+ normalized=tool(apply['name'],args)
+ assert not normalized.get('isError'),normalized
+ assert tool('object_get',{'id':arrow})['structuredContent']['result']['object']['label']=='Customer request'
+ print(f'MCP stdio: {len(names)} tools, edits, conflicts, three WASM plugins and confirmed normalization OK')
 finally:
  p.terminate()
  try:p.wait(timeout=5)

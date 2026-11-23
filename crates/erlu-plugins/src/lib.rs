@@ -52,19 +52,25 @@ impl Default for PluginHost {
             runtime,
             plugins: BTreeMap::new(),
         };
-        let paths = [
-            std::env::var_os("ERLU_PLUGIN_DIR")
-                .map(|p| PathBuf::from(p).join("colors/plugin.json")),
-            std::env::current_exe()
-                .ok()
-                .and_then(|p| p.parent().map(|p| p.join("plugins/colors/plugin.json"))),
-            Some(
-                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../plugins/colors/plugin.json"),
-            ),
-        ];
-        for p in paths.into_iter().flatten() {
-            if p.exists() && host.load(&p).is_ok() {
-                break;
+        for id in ["colors", "responsibility_map", "semantic_dictionary"] {
+            let paths = [
+                std::env::var_os("ERLU_PLUGIN_DIR")
+                    .map(|p| PathBuf::from(p).join(id).join("plugin.json")),
+                std::env::current_exe().ok().and_then(|p| {
+                    p.parent()
+                        .map(|p| p.join("plugins").join(id).join("plugin.json"))
+                }),
+                Some(
+                    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("../../plugins")
+                        .join(id)
+                        .join("plugin.json"),
+                ),
+            ];
+            for path in paths.into_iter().flatten() {
+                if path.exists() && host.load(&path).is_ok() {
+                    break;
+                }
             }
         }
         host
@@ -208,6 +214,7 @@ impl PluginHost {
                 "Read-only plugin action proposed edits",
             ));
         }
+        validate_confirmation(&plugin.manifest, &output.result, state.revision)?;
         let mut check = state.clone();
         check.dispatch(
             Command::Transaction {
@@ -241,6 +248,28 @@ pub fn validate_manifest(m: &Manifest) -> Result<()> {
         {
             return Err(error("plugin_manifest", "Invalid action declaration"));
         }
+    }
+    Ok(())
+}
+
+/// A report may propose only a registered write action from its originating plugin.
+pub fn validate_confirmation(manifest: &Manifest, result: &Value, revision: u64) -> Result<()> {
+    let Some(value) = result.get("confirm_action") else {
+        return Ok(());
+    };
+    let followup: PluginConfirmation = serde_json::from_value(value.clone())
+        .map_err(|e| error("plugin_confirmation", e.to_string()))?;
+    if followup.expected_revision != revision
+        || !followup.arguments.is_object()
+        || !manifest.actions.iter().any(|a| {
+            a.kind == "command"
+                && followup.name == format!("plugin_{}_{}", manifest.id, a.name.replace('.', "_"))
+        })
+    {
+        return Err(error(
+            "plugin_confirmation",
+            "Preview must reference a write action from the same plugin at the snapshot revision",
+        ));
     }
     Ok(())
 }

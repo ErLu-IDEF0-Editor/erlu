@@ -11,3 +11,9 @@
 __pycache__/
 /tmp/
 /output/
+
+/plugins/responsibility_map/target/
+/plugins/responsibility_map/dist/
+
+/plugins/semantic_dictionary/target/
+/plugins/semantic_dictionary/dist/

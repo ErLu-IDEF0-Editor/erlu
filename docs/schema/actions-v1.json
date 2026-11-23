@@ -137,6 +137,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -161,6 +165,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -182,6 +190,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -248,18 +260,21 @@
             "footer_number_override": "",
             "footer_title_override": "",
             "initials": "",
+            "model_abbreviation": "",
             "notes": "",
             "number": "",
             "organization": "",
             "page_size": "A4",
             "portrait": false,
             "project": "",
+            "purpose": "",
             "reader": "",
             "reader_date": "",
             "revision": "",
             "time_unit": "days",
             "title": "",
             "used_at": "",
+            "viewpoint": "",
             "with_footer": true,
             "with_header": true
           }
@@ -407,6 +422,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -431,6 +450,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -452,6 +475,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -655,6 +682,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -679,6 +710,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -700,6 +735,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -891,6 +930,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -915,6 +958,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -936,6 +983,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -1137,6 +1188,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -1161,6 +1216,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -1182,6 +1241,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -1379,6 +1442,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -1403,6 +1470,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -1424,6 +1495,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -1615,6 +1690,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -1639,6 +1718,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -1660,6 +1743,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -1851,6 +1938,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -1875,6 +1966,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -1896,6 +1991,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -2097,6 +2196,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -2121,6 +2224,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -2142,6 +2249,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -2354,6 +2465,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -2378,6 +2493,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -2399,6 +2518,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -2617,6 +2740,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -2641,6 +2768,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -2662,6 +2793,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -2867,6 +3002,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -2891,6 +3030,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -2912,6 +3055,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -3116,6 +3263,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -3140,6 +3291,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -3161,6 +3316,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -3368,6 +3527,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -3392,6 +3555,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -3413,6 +3580,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -3629,6 +3800,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -3653,6 +3828,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -3674,6 +3853,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -3926,6 +4109,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -3950,6 +4137,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -3971,6 +4162,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -4186,6 +4381,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -4210,6 +4409,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -4231,6 +4434,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -4436,6 +4643,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -4460,6 +4671,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -4481,6 +4696,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -4687,6 +4906,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -4711,6 +4934,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -4732,6 +4959,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -4944,6 +5175,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -4968,6 +5203,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -4989,6 +5228,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -5199,6 +5442,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -5223,6 +5470,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -5244,6 +5495,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -5452,6 +5707,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -5476,6 +5735,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -5497,6 +5760,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -5698,6 +5965,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -5722,6 +5993,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -5743,6 +6018,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -5944,6 +6223,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -5968,6 +6251,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -5989,6 +6276,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -6180,6 +6471,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -6204,6 +6499,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -6225,6 +6524,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -6429,6 +6732,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -6453,6 +6760,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -6474,6 +6785,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -6694,6 +7009,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -6718,6 +7037,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -6739,6 +7062,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -6930,6 +7257,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -6954,6 +7285,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -6975,6 +7310,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -7174,6 +7513,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -7198,6 +7541,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -7219,6 +7566,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -7410,6 +7761,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -7434,6 +7789,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -7455,6 +7814,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -7646,6 +8009,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -7670,6 +8037,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -7691,6 +8062,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -7882,6 +8257,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -7906,6 +8285,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -7927,6 +8310,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -8118,6 +8505,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -8142,6 +8533,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -8163,6 +8558,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -8354,6 +8753,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -8378,6 +8781,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -8399,6 +8806,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -8605,6 +9016,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -8629,6 +9044,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -8650,6 +9069,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -8855,6 +9278,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -8879,6 +9306,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -8900,6 +9331,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },
@@ -9107,6 +9542,10 @@
               "default": "",
               "type": "string"
             },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
             "notes": {
               "default": "",
               "type": "string"
@@ -9131,6 +9570,10 @@
               "default": "",
               "type": "string"
             },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
             "reader": {
               "default": "",
               "type": "string"
@@ -9152,6 +9595,10 @@
               "type": "string"
             },
             "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
               "default": "",
               "type": "string"
             },

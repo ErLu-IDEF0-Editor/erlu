@@ -78,6 +78,13 @@ impl ErluApp {
                     .show(ui, |ui| match self.dialogs.tab {
                         0 => {
                             field(ui, &self.tr("Title:"), &mut meta.title);
+                            field(
+                                ui,
+                                &self.tr("Model abbreviation:"),
+                                &mut meta.model_abbreviation,
+                            );
+                            field(ui, &self.tr("Model purpose:"), &mut meta.purpose);
+                            field(ui, &self.tr("Model viewpoint:"), &mut meta.viewpoint);
                             field(ui, &self.tr("Organization:"), &mut meta.organization);
                             let old = meta.author.clone();
                             let old_initials = old
@@ -349,10 +356,26 @@ impl ErluApp {
         }
         if let Some(mut report) = self.dialogs.report.take() {
             let mut open = true;
+            let mut apply = None;
             egui::Window::new(self.tr("Report"))
                 .open(&mut open)
                 .default_size([650., 450.])
                 .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        if self.dialogs.report_confirm.is_some()
+                            && ui.button(self.tr("Apply previewed changes")).clicked()
+                        {
+                            apply = self.dialogs.report_confirm.take();
+                        }
+                        if ui.button(self.tr("Copy report")).clicked() {
+                            ui.ctx().copy_text(report.clone());
+                        }
+                        if let Some((name, mime)) = self.dialogs.report_export.clone()
+                            && ui.button(self.tr("Save report…")).clicked()
+                        {
+                            self.save_report(name, mime, &report);
+                        }
+                    });
                     egui::ScrollArea::both().show(ui, |ui| {
                         ui.add(
                             egui::TextEdit::multiline(&mut report)
@@ -363,6 +386,17 @@ impl ErluApp {
                 });
             if open {
                 self.dialogs.report = Some(report);
+            } else {
+                self.dialogs.report_export = None;
+                self.dialogs.report_confirm = None;
+            }
+            if let Some(action) = apply {
+                self.invoke_registered_at(
+                    &action.name,
+                    action.arguments,
+                    s,
+                    action.expected_revision,
+                );
             }
         }
         if self.dialogs.export {

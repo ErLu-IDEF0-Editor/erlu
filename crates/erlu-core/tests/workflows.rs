@@ -366,3 +366,120 @@ fn pdf_normalized_xobject_is_scaled_to_physical_page() {
     let p = doc.page();
     assert!(matrices.iter().any(|m|(m[0]-p.x*72./25.4).abs()<0.1&&(m[3]-p.y*72./25.4).abs()<0.1),"PDF must scale svg2pdf's normalized unit-square XObject to the physical page");
 }
+
+#[test]
+fn interface_label_changes_reach_branches_and_deeper_decompositions() {
+    let mut e = Engine::default();
+    let parent = call(
+        &mut e,
+        "arrow_create",
+        json!({"from":edge(Port::Control),"to":ep(2,Port::Control),"label":"Old policy"}),
+    )
+    .result["id"]
+        .as_u64()
+        .unwrap();
+    call(&mut e, "decompose", json!({"block":2}));
+    let child = e.view.diagram;
+    let a = block(&mut e, -60., 0.);
+    let b = block(&mut e, 20., 0.);
+    let interface = e.document.diagrams[&child]
+        .arrows
+        .values()
+        .find(|a| a.interface.is_some())
+        .unwrap()
+        .id;
+    call(
+        &mut e,
+        "interface_connect",
+        json!({"id":interface,"endpoint":ep(a,Port::Control)}),
+    );
+    let branched = call(
+        &mut e,
+        "arrow_branch",
+        json!({"id":interface,"point":{"x":-40.,"y":-25.},"target":ep(b,Port::Control)}),
+    );
+    let forward = branched.result["forward"].as_u64().unwrap();
+    call(&mut e, "decompose", json!({"block":a}));
+    let grandchild = e.view.diagram;
+    call(
+        &mut e,
+        "arrow_update",
+        json!({"id":parent,"label":"New policy"}),
+    );
+    assert_eq!(
+        e.document.diagrams[&child].arrows[&forward].label,
+        "New policy"
+    );
+    assert_eq!(
+        e.document.diagrams[&child].arrows[&forward].label_source,
+        Some(interface)
+    );
+    assert!(
+        e.document.diagrams[&grandchild]
+            .arrows
+            .values()
+            .all(|a| a.label == "New policy")
+    );
+    call(&mut e, "undo", json!({}));
+    assert_eq!(
+        e.document.diagrams[&child].arrows[&forward].label,
+        "Old policy"
+    );
+    call(&mut e, "redo", json!({}));
+    assert_eq!(
+        e.document.diagrams[&child].arrows[&forward].label,
+        "New policy"
+    );
+}
+#[test]
+fn label_sources_propagate_transitively_without_detaching_inheritance() {
+    let mut e = Engine::default();
+    let b = block(&mut e, 60., 0.);
+    let first = call(
+        &mut e,
+        "arrow_create",
+        json!({"from":ep(2,Port::Output),"to":ep(b,Port::Input),"label":"Old"}),
+    )
+    .result["id"]
+        .as_u64()
+        .unwrap();
+    let second = call(
+        &mut e,
+        "arrow_create",
+        json!({"from":ep(2,Port::Output),"to":ep(b,Port::Control),"label":"Old"}),
+    )
+    .result["id"]
+        .as_u64()
+        .unwrap();
+    let third = call(
+        &mut e,
+        "arrow_create",
+        json!({"from":ep(b,Port::Output),"to":edge(Port::Output),"label":"Old"}),
+    )
+    .result["id"]
+        .as_u64()
+        .unwrap();
+    e.document
+        .diagrams
+        .get_mut(&1)
+        .unwrap()
+        .arrows
+        .get_mut(&second)
+        .unwrap()
+        .label_source = Some(first);
+    e.document
+        .diagrams
+        .get_mut(&1)
+        .unwrap()
+        .arrows
+        .get_mut(&third)
+        .unwrap()
+        .label_source = Some(second);
+    validate_structure(&e.document).unwrap();
+    call(&mut e, "arrow_update", json!({"id":first,"label":"New"}));
+    assert_eq!(e.document.diagrams[&1].arrows[&third].label, "New");
+    assert_eq!(
+        e.document.diagrams[&1].arrows[&third].label_source,
+        Some(second)
+    );
+}

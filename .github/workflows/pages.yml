@@ -1,0 +1,67 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.99.0'
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install wasm-tools --version 1.263.0 --locked
+      - run: cargo install trunk --version 0.21.14 --locked
+      - run: npm --prefix web ci
+      - run: npm --prefix web run plugins
+      - name: Build portable static application
+        run: trunk build --release --locked
+        env:
+          NO_COLOR: 'true'
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: web
+      - name: Test application under repository subpath
+        run: npm test -- --project chromium
+        working-directory: web
+        env:
+          ERLU_BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/web
+
+  deploy:
+    if: github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy tested application
+        id: deployment
+        uses: actions/deploy-pages@v4

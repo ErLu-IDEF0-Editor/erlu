@@ -335,11 +335,23 @@ impl Engine {
                 for id in &ids {
                     self.object_diagram(*id)?;
                 }
+                let parents: BTreeSet<_> = ids
+                    .iter()
+                    .filter(|id| self.document.block(**id).is_some())
+                    .filter_map(|id| self.document.diagram_of(*id))
+                    .filter_map(|d| self.document.diagrams[&d].parent_block)
+                    .collect();
                 for id in ids {
                     if self.document.diagram_of(id).is_some() {
                         self.delete_object(id)?;
                     }
                 }
+                for parent in parents {
+                    if self.document.block(parent).is_some() {
+                        self.renumber_children(parent)?;
+                    }
+                }
+                self.refresh_calls();
                 self.refresh_interfaces()?;
                 Ok(json!({}))
             }
@@ -774,15 +786,14 @@ impl Engine {
         let prefix = if prefix == "A0" {
             "A".to_string()
         } else {
-            format!("{prefix}.")
+            prefix
         };
-        let n = diag
+        let used: BTreeSet<_> = diag
             .blocks
             .values()
             .filter_map(|b| b.number.strip_prefix(&prefix)?.parse::<u32>().ok())
-            .max()
-            .unwrap_or(0)
-            + 1;
+            .collect();
+        let n = (1..).find(|n| !used.contains(n)).unwrap();
         Ok(format!("{prefix}{n}"))
     }
     fn create_arrow(&mut self, d: Id, from: Endpoint, to: Endpoint, label: String) -> Result<Id> {
@@ -809,16 +820,17 @@ impl Engine {
     fn renumber_children(&mut self, id: Id) -> Result<()> {
         let b = self.document.block(id).unwrap().clone();
         if let Some(c) = b.child {
-            let ids = self.document.diagrams[&c]
+            let mut children = self.document.diagrams[&c]
                 .blocks
-                .keys()
-                .copied()
+                .values()
                 .collect::<Vec<_>>();
+            children.sort_by(|a, b| a.number.cmp(&b.number));
+            let ids = children.into_iter().map(|b| b.id).collect::<Vec<_>>();
             for (i, child) in ids.into_iter().enumerate() {
                 self.block_mut(child)?.number = if b.number == "A0" {
                     format!("A{}", i + 1)
                 } else {
-                    format!("{}.{}", b.number, i + 1)
+                    format!("{}{}", b.number, i + 1)
                 };
                 self.renumber_children(child)?;
             }
@@ -847,17 +859,25 @@ impl Engine {
         }
     }
     fn propagate_labels(&mut self, id: Id) {
-        let label = self
-            .document
-            .diagrams
-            .values()
-            .find_map(|d| d.arrows.get(&id).map(|a| a.label.clone()));
-        if let Some(label) = label {
-            for d in self.document.diagrams.values_mut() {
-                for a in d.arrows.values_mut() {
-                    if a.label_source == Some(id) {
-                        a.label = label.clone();
-                        a.label_hidden = !label.is_empty();
+        let mut pending = vec![id];
+        let mut visited = BTreeSet::new();
+        while let Some(source) = pending.pop() {
+            if !visited.insert(source) {
+                continue;
+            }
+            let label = self
+                .document
+                .diagrams
+                .values()
+                .find_map(|d| d.arrows.get(&source).map(|a| a.label.clone()));
+            if let Some(label) = label {
+                for d in self.document.diagrams.values_mut() {
+                    for a in d.arrows.values_mut() {
+                        if a.label_source == Some(source) {
+                            a.label = label.clone();
+                            a.label_hidden = !label.is_empty();
+                            pending.push(a.id);
+                        }
                     }
                 }
             }
@@ -992,6 +1012,7 @@ impl Engine {
                                 e.tunneled = ep.tunneled;
                             }
                         }
+                        self.propagate_labels(id);
                     } else {
                         let edge = Endpoint {
                             anchor: Anchor::Boundary { port, t },

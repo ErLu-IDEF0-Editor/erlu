@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/erlu-core", "crates/erlu-app", "crates/erlu-plugins"]
-exclude = ["plugins/colors"]
+exclude = ["plugins/colors", "plugins/responsibility_map", "plugins/semantic_dictionary"]
 resolver = "2"
 
 [workspace.package]

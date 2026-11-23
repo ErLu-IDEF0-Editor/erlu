@@ -21,4 +21,10 @@ watch = [
   "web/sdk", "web/manifest.webmanifest",
   "plugins/colors/src", "plugins/colors/wit", "plugins/colors/plugin.json",
   "plugins/colors/Cargo.toml", "plugins/colors/Cargo.lock",
+  "plugins/responsibility_map/src", "plugins/responsibility_map/wit",
+  "plugins/responsibility_map/plugin.json",
+  "plugins/responsibility_map/Cargo.toml", "plugins/responsibility_map/Cargo.lock",
+  "plugins/semantic_dictionary/src", "plugins/semantic_dictionary/wit",
+  "plugins/semantic_dictionary/plugin.json",
+  "plugins/semantic_dictionary/Cargo.toml", "plugins/semantic_dictionary/Cargo.lock",
 ]

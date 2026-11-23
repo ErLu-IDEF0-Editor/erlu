@@ -1,11 +1,14 @@
 { pkgs ? import <nixpkgs> {} }:
 let
   inherit (pkgs) lib;
-  colors = pkgs.rustPlatform.buildRustPackage {
-    pname = "erlu-colors";
+  mkPlugin = id: artifact: pkgs.rustPlatform.buildRustPackage {
+    pname = "erlu-${id}";
     version = "0.1.0";
-    src = lib.cleanSourceWith { src = ./plugins/colors; filter = path: type: lib.cleanSourceFilter path type && !(builtins.elem (builtins.baseNameOf path) [ "target" "dist" ]); };
-    cargoLock.lockFile = ./plugins/colors/Cargo.lock;
+    src = lib.cleanSourceWith {
+      src = ./plugins + "/${id}";
+      filter = path: type: lib.cleanSourceFilter path type && !(builtins.elem (builtins.baseNameOf path) [ "target" "dist" ]);
+    };
+    cargoLock.lockFile = ./plugins + "/${id}/Cargo.lock";
     nativeBuildInputs = [ pkgs.wasm-tools pkgs.lld ];
     CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS = "-C link-arg=--max-memory=33554432";
     buildPhase = ''
@@ -16,10 +19,13 @@ let
     doCheck = false;
     installPhase = ''
       mkdir -p $out/dist
-      wasm-tools component new target/wasm32-unknown-unknown/release/erlu_colors.wasm -o $out/dist/colors.wasm
+      wasm-tools component new target/wasm32-unknown-unknown/release/${artifact}.wasm -o $out/dist/${id}.wasm
       cp plugin.json $out/plugin.json
     '';
   };
+  colors = mkPlugin "colors" "erlu_colors";
+  responsibilityMap = mkPlugin "responsibility_map" "erlu_responsibility_map";
+  semanticDictionary = mkPlugin "semantic_dictionary" "erlu_semantic_dictionary";
   runtimeLibraries = with pkgs; [ libGL libxkbcommon wayland libx11 libxcursor libxrandr libxi ];
 in pkgs.rustPlatform.buildRustPackage {
   pname = "erlu";
@@ -38,6 +44,10 @@ in pkgs.rustPlatform.buildRustPackage {
   postInstall = ''
     mkdir -p $out/bin/plugins/colors
     cp -r ${colors}/* $out/bin/plugins/colors/
+    mkdir -p $out/bin/plugins/responsibility_map
+    cp -r ${responsibilityMap}/* $out/bin/plugins/responsibility_map/
+    mkdir -p $out/bin/plugins/semantic_dictionary
+    cp -r ${semanticDictionary}/* $out/bin/plugins/semantic_dictionary/
     wrapProgram $out/bin/erlu --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibraries}
     install -Dm644 packaging/linux/erlu-idef0-editor.desktop $out/share/applications/erlu.desktop
     install -Dm644 packaging/linux/idef0.xml $out/share/mime/packages/erlu.xml

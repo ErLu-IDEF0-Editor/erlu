@@ -171,6 +171,9 @@ impl Diagram {
 #[serde(default)]
 pub struct Metadata {
     pub title: String,
+    pub model_abbreviation: String,
+    pub purpose: String,
+    pub viewpoint: String,
     pub organization: String,
     pub author: String,
     pub initials: String,
@@ -200,6 +203,9 @@ impl Default for Metadata {
     fn default() -> Self {
         Self {
             title: String::new(),
+            model_abbreviation: String::new(),
+            purpose: String::new(),
+            viewpoint: String::new(),
             organization: String::new(),
             author: String::new(),
             initials: String::new(),
@@ -379,7 +385,7 @@ impl Document {
             .and_then(|d| d.parent_block)
             .and_then(|id| self.block(id))
             .map(|b| b.number.clone())
-            .unwrap_or("TOP".into())
+            .unwrap_or("A-0".into())
     }
     pub fn title(&self, diagram: Id) -> String {
         self.diagrams

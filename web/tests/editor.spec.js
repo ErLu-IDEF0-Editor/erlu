@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-async function ready(page){await page.goto('/');await page.waitForFunction(()=>window.erluRuntime?.actionSpecs?.()?.length>30);}
+async function ready(page){await page.goto('./');await page.waitForFunction(()=>window.erluRuntime?.actionSpecs?.()?.length>30);}
 async function call(page,action,args={},revision){return page.evaluate(async({action,args,revision})=>window.erluRuntime.call(action,args,revision),{action,args,revision});}
 test('browser engine edits, decomposition, history and PDF',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await ready(page);
@@ -55,4 +55,84 @@ test('GUI ports create arrows and middle-click opens inherited interfaces',async
  state=(await call(page,'document_state')).response.result;
  expect(Object.values(state.document.diagrams[state.view.diagram].arrows).filter(a=>a.interface?.stub)).toHaveLength(0);
  await page.keyboard.press('Control+ArrowUp');await page.waitForTimeout(250);expect((await call(page,'document_state')).response.result.view.diagram).toBe(1);
+});
+
+test('Responsibility Map uses the same WASM component for RACI, exports and undo',async({page})=>{
+ await ready(page);
+ await page.waitForFunction(()=>window.erluRuntime.actionSpecs().some(s=>s.name==='plugin_responsibility_map_matrix_export'));
+ const plugin=(action,args={})=>call(page,`plugin_responsibility_map_${action}`,args);
+ await call(page,'selection_set',{ids:[2]});
+ for(const name of ['Operations','Manager'])expect((await plugin('role_add',{name})).ok).toBe(true);
+ expect((await plugin('assignment_set',{role:'Operations',responsibility:'R'})).ok).toBe(true);
+ expect((await plugin('assignment_set',{role:'Manager',responsibility:'A'})).ok).toBe(true);
+ expect((await plugin('validate')).response.result.valid).toBe(true);
+ const revision=(await call(page,'document_state')).response.revision;
+ const matrix=await plugin('matrix_export',{format:'csv',scope:'document'});
+ expect(matrix.ok,matrix.error?.message).toBe(true);
+ expect(matrix.response.result.text).toContain('Operations');
+ expect(matrix.response.result.filename).toBe('responsibility-map.csv');
+ expect((await call(page,'document_state')).response.revision).toBe(revision);
+ expect((await plugin('assignment_set',{role:'Operations',responsibility:'A'})).ok).toBe(true);
+ expect((await plugin('validate')).response.result.diagnostics.some(d=>d.code==='multiple_accountable')).toBe(true);
+ await call(page,'undo');expect((await plugin('validate')).response.result.valid).toBe(true);
+ expect((await plugin('role_rename',{name:'Manager',new_name:'Owner'})).ok).toBe(true);
+ const serialized=(await call(page,'document_serialize')).response.result.json;
+ expect((await call(page,'document_open',{json:serialized,discard:true})).ok).toBe(true);
+ expect((await plugin('validate')).response.result.valid).toBe(true);
+ await call(page,'selection_set',{ids:[2]});
+ const result=await plugin('matrix_export',{format:'json',scope:'selection'});
+ expect(JSON.parse(result.response.result.text).roles.some(role=>role.name==='Owner')).toBe(true);
+});
+
+test('Semantic Dictionary previews inherited label changes and imports portable catalogs',async({page})=>{
+ await ready(page);
+ await page.waitForFunction(()=>window.erluRuntime.actionSpecs().some(s=>s.name==='plugin_semantic_dictionary_normalize_preview'));
+ const dictionary=(action,args={},revision)=>call(page,`plugin_semantic_dictionary_${action}`,args,revision);
+ const ep=(id,port)=>({anchor:{kind:'block',id,port,t:.5}});
+ const boundary=port=>({anchor:{kind:'boundary',port,t:.5}});
+ const created=await call(page,'arrow_create',{from:boundary('input'),to:ep(2,'input'),label:'req'});expect(created.ok).toBe(true);
+ const source=created.response.result.id;
+ await call(page,'decompose',{block:2});
+ const a=(await call(page,'block_create',{pos:{x:-60,y:0},title:'Receive request'})).response.result.id;
+ const b=(await call(page,'block_create',{pos:{x:20,y:0},title:'Process request'})).response.result.id;
+ let state=(await call(page,'document_state')).response;
+ const diagram=state.result.view.diagram;
+ const inherited=Object.values(state.result.document.diagrams[diagram].arrows).find(a=>a.interface).id;
+ expect((await call(page,'interface_connect',{id:inherited,endpoint:ep(a,'input')})).ok).toBe(true);
+ const branch=await call(page,'arrow_branch',{id:inherited,point:{x:-80,y:0},target:ep(b,'input')});expect(branch.ok).toBe(true);
+ const forward=branch.response.result.forward;
+ const independent=(await call(page,'arrow_create',{from:ep(b,'output'),to:boundary('output'),label:'Other result'})).response.result.id;
+ expect((await dictionary('concept_add',{code:'request',term:'Заявка клиента',definition:'Запрос клиента'})).ok).toBe(true);
+ expect((await dictionary('alias_add',{code:'request',alias:'req'})).ok).toBe(true);
+ await call(page,'selection_set',{ids:[inherited]});expect((await dictionary('binding_set',{code:'request'})).ok).toBe(true);
+ const before=(await call(page,'document_state')).response;
+ const preview=await dictionary('normalize_preview',{scope:'selection'});expect(preview.ok,preview.error?.message).toBe(true);
+ expect(preview.response.result.changes[0].root).toBe(source);
+ expect(preview.response.result.changes[0].uses.some(use=>use.arrow===forward)).toBe(true);
+ expect((await call(page,'document_state')).response.revision).toBe(before.revision);
+ const stale=preview.response.result.confirm_action;
+ await dictionary('concept_update',{code:'request',field:'owner',value:'Operations'});
+ expect((await call(page,stale.name,stale.arguments,stale.expected_revision)).error.code).toBe('revision_conflict');
+ const fresh=await dictionary('normalize_preview',{scope:'selection'});const confirm=fresh.response.result.confirm_action;
+ await call(page,'selection_set',{ids:[independent]});
+ expect((await call(page,confirm.name,confirm.arguments,confirm.expected_revision)).ok).toBe(true);
+ state=(await call(page,'document_state')).response;
+ expect(state.result.document.diagrams['1'].arrows[source].label).toBe('Заявка клиента');
+ expect(state.result.document.diagrams[diagram].arrows[forward].label).toBe('Заявка клиента');
+ expect(state.result.document.diagrams[diagram].arrows[forward].label_source).toBe(inherited);
+ expect(state.result.document.diagrams[diagram].arrows[independent].label).toBe('Other result');
+ await call(page,'undo');expect((await call(page,'document_state')).response.result.document.diagrams['1'].arrows[source].label).toBe('req');
+ await call(page,'redo');
+ const serialized=(await call(page,'document_serialize')).response.result.json;
+ await call(page,'document_open',{json:serialized,discard:true});
+ const usage=await dictionary('usage',{code:'request'});expect(usage.response.result.uses.length).toBeGreaterThan(1);
+ const exported=await dictionary('catalog_export',{format:'json'});const catalog=JSON.parse(exported.response.result.text);
+ expect(catalog.bindings).toBeUndefined();
+ await call(page,'document_new',{discard:true});
+ const imported=await dictionary('catalog_import_preview',{catalog});expect(imported.ok,imported.error?.message).toBe(true);
+ const apply=imported.response.result.confirm_action;
+ expect((await call(page,apply.name,apply.arguments,apply.expected_revision)).ok).toBe(true);
+ const restored=(await call(page,'document_state')).response.result.document.extensions.semantic_dictionary.data;
+ expect(restored.bindings).toEqual({});
+ expect(Object.values(restored.concepts)[0].term).toBe('Заявка клиента');
 });

@@ -25,8 +25,8 @@ connection time. Query the tool list again after loading a plugin in the GUI.
 Build with `npm --prefix web run plugins`. The SDK builds the Rust guest for
 `wasm32-unknown-unknown`, caps its linear memory at 32 MiB, wraps it with wasm-tools,
 and generates browser bindings with jco. Native loads the component through Wasmtime;
-web loads its SDK-generated bindings in a fresh Worker. The default colors plugin
-is deployed with the application on both platforms.
+web loads its SDK-generated bindings in a fresh Worker. The colors, Responsibility Map and Semantic Dictionary plugins
+are deployed with the application on both platforms.
 
 Native imposes 32 MiB memory, fuel and a two-second epoch deadline. Browser execution
 has a two-second Worker deadline; SDK components have the declared memory cap.
@@ -41,3 +41,34 @@ Own data belongs under `extensions[plugin-id]`, with a positive version and `dat
 Use `extension_set` in a transaction. Preserve other plugins' namespaces. Declare
 model-affecting capabilities as required; optional missing plugin data is roundtripped.
 Custom native widgets and plugin-provided notations are outside SDK v1.
+
+## Responsibility Map
+
+The bundled `responsibility_map` component provides a role registry, explicit RACI
+assignments to selected function blocks, plugin-specific responsibility diagnostics
+and Markdown/CSV/JSON matrix exports. Its data is optional, namespaced and undoable.
+See the [usage and API guide](../plugins/responsibility_map/README.md).
+
+Plugin results with a `text` string are shown as readable reports. Results that
+also provide `filename` and `mime` expose Save report in desktop and web; structured
+results are retained unchanged in the MCP/web response. Reports can be copied.
+
+## Semantic Dictionary and preview confirmation
+
+The bundled `semantic_dictionary` component adds concepts, synonyms, arrow bindings,
+terminology diagnostics, catalog exchange and explicit label normalization. See its
+[usage and API guide](../plugins/semantic_dictionary/README.md).
+
+A read-only preview may return `result.confirm_action` with exactly `name`,
+`arguments` (an object), and `expected_revision`. This does not apply edits. The
+host verifies that the target is a registered command of the originating plugin
+and that the revision equals the evaluated snapshot. The GUI offers Apply previewed
+changes; clicking invokes that command against the saved revision. A stale report
+is rejected and must be regenerated. MCP/web clients receive the same metadata and
+perform a separate explicit call.
+
+Command input schemas may set `x-erlu-confirm-only: true` to hide apply-only actions
+from the ordinary GUI menu without hiding them from API discovery. This annotation
+is presentation-only, not authorization; apply actions must check their own preview
+arguments and revision. Preview arguments must freeze object IDs rather than depend
+on later selection/navigation, which do not change the document revision.

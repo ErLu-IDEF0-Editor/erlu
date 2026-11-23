@@ -29,11 +29,11 @@ impl ErluApp {
             });
             ui.menu_button(self.tr("Tools"), |ui| {
                 if ui.button(self.tr("Validation")).clicked() {
-                    if let Some(r)=self.execute(Command::Validate{}) {self.dialogs.report=Some(self.validation_report(&r.result,snapshot));}
+                    if let Some(r)=self.execute(Command::Validate{}) {self.dialogs.report_export=None;self.dialogs.report_confirm=None;self.dialogs.report=Some(self.validation_report(&r.result,snapshot));}
                     ui.close();
                 }
                 if ui.button(self.tr("Calculate Prices")).clicked() {
-                    if let Some(r)=self.execute(Command::CalculatePrices{}) {self.dialogs.report=Some(format!("{}: {}",self.tr("Updated blocks"),r.result["updated_blocks"]));}
+                    if let Some(r)=self.execute(Command::CalculatePrices{}) {self.dialogs.report_export=None;self.dialogs.report_confirm=None;self.dialogs.report=Some(format!("{}: {}",self.tr("Updated blocks"),r.result["updated_blocks"]));}
                     ui.close();
                 }
                 if ui.button(self.tr("Node tree…")).clicked() {self.dialogs.tree=true;ui.close();}
@@ -62,7 +62,7 @@ impl ErluApp {
                 if ui.button(self.tr("Set item color...")).clicked() {self.dialogs.colors=true;ui.close();}
                 if ui.button(self.tr("Clear item colors")).clicked() {self.plugin_color(snapshot,None);ui.close();}
                 for spec in specs {
-                    if spec.name.starts_with("plugin_colors_") {continue;}
+                    if spec.name.starts_with("plugin_colors_") || spec.input_schema["x-erlu-confirm-only"] == true {continue;}
                     if ui.button(&spec.description).clicked() {
                         let arguments=form_defaults(&spec.input_schema);self.dialogs.plugin=Some(PluginForm{spec,arguments});ui.close();
                     }
@@ -115,22 +115,31 @@ impl ErluApp {
                     let code = item["code"].as_str().unwrap_or("");
                     let message = match code {
                         "context_block_count" => "The context diagram should contain one block",
-                        "decomposition_block_count" => "A decomposition should contain 3–8 blocks",
+                        "model_name" => "Provide the full model name",
+                        "model_abbreviation" => "Provide the model name abbreviation",
+                        "model_purpose" => "Provide the model purpose statement",
+                        "model_viewpoint" => "Provide the model viewpoint statement",
+                        "node_numbering" => {
+                            "Use A0 for the context box and consecutive child node numbers formed by appending 1–9 to the parent node"
+                        }
+                        "decomposition_block_count" => "A decomposition should contain 2–9 blocks",
                         "incomplete_interface" => "Decomposition has unconnected interface circles",
                         "block_name" => "Provide a meaningful function name",
-                        "missing_input_control" => "At least one input or control is required",
+                        "missing_control" => "At least one control is required",
                         "missing_output" => "At least one output is required",
-                        "identical_input_output" => "Input and output names must differ",
+                        "identical_input_output" => "Input and output share the same label",
                         "black_box" => "All connected endpoints are tunneled",
                         "unrelated_block" => "No direct relation to other decomposition blocks",
                         "cost_mismatch" => "Subprocess cost exceeds parent cost",
-                        "interface_role_change" => "A boundary flow changes its ICOM role",
-                        "output_as_mechanism" => "A block output acts as another block's mechanism",
                         "duplicate_arrow" => {
                             "The same labelled arrow enters a block more than once"
                         }
                         _ => item["message"].as_str().unwrap_or(""),
                     };
+                    let reference = item["reference"]
+                        .as_str()
+                        .map(|r| format!(" [{}; {r}]", item["source"].as_str().unwrap_or("")))
+                        .unwrap_or_else(|| " [erlu]".into());
                     let node = item["diagram"]
                         .as_u64()
                         .map(|id| snapshot.document.node(id))
@@ -140,7 +149,10 @@ impl ErluApp {
                         .and_then(|id| snapshot.document.block(id))
                         .map(|b| format!(" — {} {}", b.number, b.title))
                         .unwrap_or_default();
-                    report.push_str(&format!("{count}. {} ({node}{object})\n", self.tr(message)));
+                    report.push_str(&format!(
+                        "{count}. {} ({node}{object}){reference}\n",
+                        self.tr(message)
+                    ));
                 }
             }
             if count == 0 {
@@ -162,6 +174,19 @@ impl ErluApp {
         }
     }
     pub(super) fn invoke_registered(&mut self, name: &str, args: Value, snapshot: &Engine) {
+        self.invoke_registered_at(name, args, snapshot, snapshot.revision);
+    }
+    pub(super) fn invoke_registered_at(
+        &mut self,
+        name: &str,
+        args: Value,
+        snapshot: &Engine,
+        expected_revision: u64,
+    ) {
+        if snapshot.revision != expected_revision {
+            self.status = self.tr("Preview is stale; generate a new preview");
+            return;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             let resolved = self.plugins.lock().unwrap().resolve(name);
@@ -183,8 +208,7 @@ impl ErluApp {
                             .is_some()
                             && !output.result.is_null()
                         {
-                            self.dialogs.report =
-                                Some(serde_json::to_string_pretty(&output.result).unwrap());
+                            self.set_plugin_report(&output.result);
                         }
                     }
                     Err(e) => self.status = e.to_string(),
@@ -196,6 +220,24 @@ impl ErluApp {
             crate::web::invoke_registered(name, args, snapshot.revision);
         }
     }
+    fn set_plugin_report(&mut self, result: &Value) {
+        if result.is_null() || result == &json!({}) {
+            return;
+        }
+        self.dialogs.report_confirm = result
+            .get("confirm_action")
+            .and_then(|v| serde_json::from_value(v.clone()).ok());
+        self.dialogs.report_export = result["filename"]
+            .as_str()
+            .zip(result["mime"].as_str())
+            .map(|(name, mime)| (name.into(), mime.into()));
+        self.dialogs.report = Some(
+            result["text"]
+                .as_str()
+                .map(str::to_owned)
+                .unwrap_or_else(|| serde_json::to_string_pretty(result).unwrap()),
+        );
+    }
     pub fn show_plugin_result(&mut self, result: Value) {
         if result["ok"] == false {
             self.status = result["error"]["message"]
@@ -206,7 +248,7 @@ impl ErluApp {
             && value != &json!({})
             && !value.is_null()
         {
-            self.dialogs.report = Some(serde_json::to_string_pretty(value).unwrap());
+            self.set_plugin_report(value);
         }
     }
     pub(super) fn plugin_color(&mut self, snapshot: &Engine, color: Option<String>) {

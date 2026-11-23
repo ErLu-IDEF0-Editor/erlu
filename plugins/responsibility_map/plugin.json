@@ -1,0 +1,221 @@
+{
+  "id": "responsibility_map",
+  "api_version": 1,
+  "version": "0.1.0",
+  "component": "dist/responsibility_map.wasm",
+  "web": "dist/responsibility_map.js",
+  "actions": [
+    {
+      "name": "role.add",
+      "title": "Responsibility Map — Add role…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Role name",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "role.rename",
+      "title": "Responsibility Map — Rename role…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Role name",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "new_name": {
+            "type": "string",
+            "title": "New role name",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "name",
+          "new_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "role.remove",
+      "title": "Responsibility Map — Remove role and its assignments…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Role name",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "assignment.set",
+      "title": "Responsibility Map — Assign selected functions…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role name",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "responsibility": {
+            "type": "string",
+            "title": "Responsibility",
+            "enum": [
+              "R",
+              "A",
+              "C",
+              "I"
+            ],
+            "default": "R"
+          },
+          "replace": {
+            "type": "boolean",
+            "title": "Replace other roles in this category",
+            "default": false
+          }
+        },
+        "required": [
+          "role",
+          "responsibility"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "assignment.remove",
+      "title": "Responsibility Map — Remove assignment from selection…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role name",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "responsibility": {
+            "type": "string",
+            "title": "Responsibility",
+            "enum": [
+              "R",
+              "A",
+              "C",
+              "I"
+            ],
+            "default": "R"
+          }
+        },
+        "required": [
+          "role",
+          "responsibility"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "assignment.clear",
+      "title": "Responsibility Map — Clear assignments for selection",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "data.prune",
+      "title": "Responsibility Map — Prune deleted functions",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "matrix.export",
+      "title": "Responsibility Map — Export RACI matrix…",
+      "kind": "export",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Include functions",
+            "enum": [
+              "document",
+              "diagram",
+              "selection"
+            ],
+            "default": "document"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format",
+            "enum": [
+              "markdown",
+              "csv",
+              "json"
+            ],
+            "default": "markdown"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "validate",
+      "title": "Responsibility Map — Check responsibility…",
+      "kind": "validation",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Include functions",
+            "enum": [
+              "document",
+              "diagram",
+              "selection"
+            ],
+            "default": "document"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

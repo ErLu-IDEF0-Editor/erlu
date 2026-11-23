@@ -462,6 +462,10 @@
           "type": "string",
           "default": ""
         },
+        "model_abbreviation": {
+          "type": "string",
+          "default": ""
+        },
         "notes": {
           "type": "string",
           "default": ""
@@ -486,6 +490,10 @@
           "type": "string",
           "default": ""
         },
+        "purpose": {
+          "type": "string",
+          "default": ""
+        },
         "reader": {
           "type": "string",
           "default": ""
@@ -507,6 +515,10 @@
           "default": ""
         },
         "used_at": {
+          "type": "string",
+          "default": ""
+        },
+        "viewpoint": {
           "type": "string",
           "default": ""
         },

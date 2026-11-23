@@ -1,6 +1,16 @@
 // Transport and storage adapters. All document edits execute in Rust.
 const PROTOCOL = 'erlu.ai.v1';
 const MAX_MESSAGE = 4 * 1024 * 1024;
+export function validatePluginConfirmation(manifest,result,revision) {
+  const followup=result?.confirm_action;
+  if(followup===undefined)return;
+  if(!followup || typeof followup!=='object' || Array.isArray(followup)
+    || Object.keys(followup).sort().join(',')!=='arguments,expected_revision,name'
+    || !Number.isSafeInteger(followup.expected_revision) || followup.expected_revision!==revision
+    || !followup.arguments || typeof followup.arguments!=='object' || Array.isArray(followup.arguments)
+    || !manifest.actions.some(a=>a.kind==='command'&&followup.name===`plugin_${manifest.id}_${a.name.replaceAll('.','_')}`))
+    throw new Error('Preview must reference a write action from the same plugin at the snapshot revision');
+}
 export function createRuntime() {
   let handle, enabled = false, allowedOrigin = '', dirty = false, pendingCheckpoint, checkpointTimer;
   const ports = new Set(), plugins = new Map(), results=[];
@@ -73,6 +83,7 @@ export function createRuntime() {
       const output=await workerRequest(plugin,action,JSON.stringify(context));
       if(JSON.stringify(output).length>MAX_MESSAGE)throw new Error('Plugin response exceeds 4 MiB');
       if(spec.kind!=='command'&&output.commands?.length)throw new Error('Read-only action proposed edits');
+      validatePluginConfirmation(plugin.manifest,output.result,context.revision);
       const applied=JSON.parse(handle.plugin_apply(JSON.stringify(output.commands??[]),BigInt(context.revision)));
       if(applied.ok)applied.response.result=output.result??{};return applied;
     }catch(error){return failure('plugin_error',String(error));}
@@ -93,5 +104,5 @@ export function createRuntime() {
   addEventListener('beforeunload',event=>{flushCheckpoint();if(dirty){event.preventDefault();event.returnValue='';}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCheckpoint();});
   async function recovery(){try{const db=await database;const request=db.transaction('recovery').objectStore('recovery').get('current');request.onsuccess=()=>{if(!request.result)return;const saved=JSON.parse(request.result);if(!saved.dirty)return;const panel=document.createElement('div');panel.id='recovery';panel.textContent='An unsaved document is available. ';for(const [label,restore]of [['Restore',true],['Discard',false]]){const button=document.createElement('button');button.textContent=label;button.onclick=()=>{if(restore){const r=JSON.parse(handle.restore(JSON.stringify(saved)));if(!r.ok){alert(r.error.message);return;}}if(!restore){db.transaction('recovery','readwrite').objectStore('recovery').delete('current');}panel.remove();};panel.append(button);}document.body.append(panel);};}catch(error){console.error(error);}}
-  return {attach(value){handle=value;installPlugin('./plugins/colors/plugin.json').catch(console.error);recovery();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error);},checkpoint,configureAI,loadPlugin,invokePlugin,onState,pluginSpecs(){return JSON.stringify(actionSpecs().filter(s=>s.name.startsWith("plugin_")&&!["plugin_load","plugin_list"].includes(s.name)));},invokePluginUI(...args){invokePlugin(...args).then(result=>results.push(result));},invokeRegistered(name,args,revision){call(name,JSON.parse(args),revision).then(result=>results.push(result));},pollResults(){return JSON.stringify(results.splice(0));},setDirty(value){dirty=value;},call,actionSpecs};
+  return {attach(value){handle=value;for(const id of ['colors','responsibility_map','semantic_dictionary'])installPlugin(`./plugins/${id}/plugin.json`).catch(console.error);recovery();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error);},checkpoint,configureAI,loadPlugin,invokePlugin,onState,pluginSpecs(){return JSON.stringify(actionSpecs().filter(s=>s.name.startsWith("plugin_")&&!["plugin_load","plugin_list"].includes(s.name)));},invokePluginUI(...args){invokePlugin(...args).then(result=>results.push(result));},invokeRegistered(name,args,revision){call(name,JSON.parse(args),revision).then(result=>results.push(result));},pollResults(){return JSON.stringify(results.splice(0));},setDirty(value){dirty=value;},call,actionSpecs};
 }

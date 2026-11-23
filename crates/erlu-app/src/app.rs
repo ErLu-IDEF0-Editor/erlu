@@ -80,6 +80,8 @@ struct Dialogs {
     block: Option<Block>,
     arrow: Option<Arrow>,
     report: Option<String>,
+    report_export: Option<(String, String)>,
+    report_confirm: Option<PluginConfirmation>,
     tree: bool,
     export: bool,
     all: bool,
@@ -348,6 +350,25 @@ impl ErluApp {
                     let _ = tx.send(FileEvent::Error(format!("{e:?}")));
                 }
             }
+        }
+    }
+    fn save_report(&mut self, name: String, mime: String, text: &str) {
+        let bytes = text.as_bytes().to_vec();
+        let tx = self.tx.clone();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = mime;
+            std::thread::spawn(move || {
+                if let Some(path) = rfd::FileDialog::new().set_file_name(name).save_file()
+                    && let Err(e) = crate::atomic_write(&path, &bytes)
+                {
+                    let _ = tx.send(FileEvent::Error(e.to_string()));
+                }
+            });
+        }
+        #[cfg(target_arch = "wasm32")]
+        if let Err(e) = crate::web::download(&name, &bytes, &mime) {
+            let _ = tx.send(FileEvent::Error(format!("{e:?}")));
         }
     }
     fn export(&mut self, kind: &str) {

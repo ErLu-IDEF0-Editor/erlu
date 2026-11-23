@@ -16,8 +16,10 @@ if mac:
  (app/'Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable':'erlu','CFBundleIdentifier':'com.gregorybednov.erlu','CFBundleName':'erlu','CFBundleVersion':'0.1.0','CFBundleShortVersionString':'0.1.0','CFBundlePackageType':'APPL','NSHighResolutionCapable':True,'CFBundleDocumentTypes':[{'CFBundleTypeName':'erlu IDEF0','CFBundleTypeRole':'Editor','CFBundleTypeExtensions':['idef0']}] }))
 else:
  dest=stage;dest.mkdir(parents=True);shutil.copy2(binary,dest/('erlu.exe' if windows else 'erlu'))
-plugins=dest/'plugins'/'colors';plugins.mkdir(parents=True)
-shutil.copy2(root/'plugins/colors/plugin.json',plugins/'plugin.json');shutil.copytree(root/'plugins/colors/dist',plugins/'dist')
+for plugin_id in ['colors','responsibility_map','semantic_dictionary']:
+ plugins=dest/'plugins'/plugin_id;plugins.mkdir(parents=True)
+ shutil.copy2(root/'plugins'/plugin_id/'plugin.json',plugins/'plugin.json')
+ shutil.copytree(root/'plugins'/plugin_id/'dist',plugins/'dist')
 shutil.copy2(root/'README.md',stage/'README.md');shutil.copytree(root/'assets/fonts',stage/'fonts')
 if windows or mac:shutil.make_archive(str(out/name),'zip',stage.parent,stage.name)
 else:shutil.make_archive(str(out/name),'gztar',stage.parent,stage.name)

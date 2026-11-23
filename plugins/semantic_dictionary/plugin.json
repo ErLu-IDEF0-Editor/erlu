@@ -1,0 +1,404 @@
+{
+  "id": "semantic_dictionary",
+  "api_version": 1,
+  "version": "0.1.0",
+  "component": "dist/semantic_dictionary.wasm",
+  "web": "dist/semantic_dictionary.js",
+  "actions": [
+    {
+      "name": "concept.add",
+      "title": "Semantic Dictionary — Add concept…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Concept code"
+          },
+          "term": {
+            "type": "string",
+            "title": "Primary term"
+          },
+          "definition": {
+            "type": "string",
+            "title": "Definition",
+            "default": ""
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner",
+            "default": ""
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": ""
+          }
+        },
+        "required": [
+          "code",
+          "term"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "concept.update",
+      "title": "Semantic Dictionary — Edit concept field…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Concept code"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "enum": [
+              "term",
+              "definition",
+              "owner",
+              "source"
+            ],
+            "default": "definition"
+          },
+          "value": {
+            "type": "string",
+            "title": "New value"
+          }
+        },
+        "required": [
+          "code",
+          "field",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "concept.remove",
+      "title": "Semantic Dictionary — Remove unused concept…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Concept code"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "alias.add",
+      "title": "Semantic Dictionary — Add synonym…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Concept code"
+          },
+          "alias": {
+            "type": "string",
+            "title": "Synonym"
+          }
+        },
+        "required": [
+          "code",
+          "alias"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "alias.remove",
+      "title": "Semantic Dictionary — Remove synonym…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Concept code"
+          },
+          "alias": {
+            "type": "string",
+            "title": "Synonym"
+          }
+        },
+        "required": [
+          "code",
+          "alias"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "binding.set",
+      "title": "Semantic Dictionary — Bind selected arrows…",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Concept code"
+          },
+          "replace": {
+            "type": "boolean",
+            "title": "Replace existing concept bindings",
+            "default": false
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "binding.clear",
+      "title": "Semantic Dictionary — Unbind selected arrows",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search",
+      "title": "Semantic Dictionary — Search dictionary…",
+      "kind": "export",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Search text",
+            "default": ""
+          },
+          "scope": {
+            "type": "string",
+            "title": "Include arrows",
+            "enum": [
+              "document",
+              "diagram",
+              "selection"
+            ],
+            "default": "document"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "usage",
+      "title": "Semantic Dictionary — Find concept uses…",
+      "kind": "export",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Concept code"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Include arrows",
+            "enum": [
+              "document",
+              "diagram",
+              "selection"
+            ],
+            "default": "document"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "validate",
+      "title": "Semantic Dictionary — Check terminology…",
+      "kind": "validation",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Include arrows",
+            "enum": [
+              "document",
+              "diagram",
+              "selection"
+            ],
+            "default": "document"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "normalize.preview",
+      "title": "Semantic Dictionary — Preview label normalization…",
+      "kind": "export",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Include arrows",
+            "enum": [
+              "document",
+              "diagram",
+              "selection"
+            ],
+            "default": "document"
+          },
+          "code": {
+            "type": "string",
+            "title": "Concept code (empty = all bound concepts)",
+            "default": ""
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "normalize.apply",
+      "title": "Semantic Dictionary — Apply previewed normalization",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "roots": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "preview_revision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "roots",
+          "preview_revision"
+        ],
+        "additionalProperties": false,
+        "x-erlu-confirm-only": true
+      }
+    },
+    {
+      "name": "catalog.export",
+      "title": "Semantic Dictionary — Export dictionary…",
+      "kind": "export",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "title": "Include arrows",
+            "enum": [
+              "document",
+              "diagram",
+              "selection"
+            ],
+            "default": "document"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format",
+            "enum": [
+              "markdown",
+              "csv",
+              "json"
+            ],
+            "default": "markdown"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "catalog.import_preview",
+      "title": "Semantic Dictionary — Preview JSON catalog import…",
+      "kind": "export",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "catalog": {
+            "type": "object",
+            "title": "JSON catalog",
+            "default": {
+              "version": 1,
+              "concepts": []
+            }
+          }
+        },
+        "required": [
+          "catalog"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "catalog.import_apply",
+      "title": "Semantic Dictionary — Apply previewed catalog import",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "catalog": {
+            "type": "object",
+            "title": "JSON catalog",
+            "default": {
+              "version": 1,
+              "concepts": []
+            }
+          },
+          "preview_revision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "catalog",
+          "preview_revision"
+        ],
+        "additionalProperties": false,
+        "x-erlu-confirm-only": true
+      }
+    },
+    {
+      "name": "data.prune",
+      "title": "Semantic Dictionary — Prune deleted arrows",
+      "kind": "command",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
