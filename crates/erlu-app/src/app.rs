@@ -14,6 +14,13 @@ use std::{
 };
 
 pub type SharedEngine = Arc<Mutex<Engine>>;
+// Read-only geometry of real controls; tests still send normal pointer events.
+fn ui_target(id: &str, response: &egui::Response, value: Option<&str>) {
+    #[cfg(target_arch = "wasm32")]
+    crate::web::ui_target(id, response, value);
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (id, response, value);
+}
 #[derive(Clone)]
 enum Drag {
     Move {
@@ -435,6 +442,8 @@ impl ErluApp {
 impl eframe::App for ErluApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        #[cfg(target_arch = "wasm32")]
+        crate::web::ui_frame();
         for file in ctx.input(|i| i.raw.dropped_files.clone()) {
             let name = file.path().to_string_lossy().to_string();
             let tx = self.tx.clone();

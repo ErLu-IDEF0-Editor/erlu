@@ -68,10 +68,9 @@ impl ErluApp {
                         .iter()
                         .enumerate()
                     {
-                        if ui
-                            .selectable_label(self.dialogs.tab == i, self.ui_text(name))
-                            .clicked()
-                        {
+                        let tab = ui.selectable_label(self.dialogs.tab == i, self.ui_text(name));
+                        ui_target(&format!("metadata.tab.{i}"), &tab, None);
+                        if tab.clicked() {
                             self.dialogs.tab = i;
                         }
                     }
@@ -113,18 +112,27 @@ impl ErluApp {
                         1 => {
                             ui.label(self.ui_text("Currency:"));
                             ui.horizontal(|ui| {
-                                ui.text_edit_singleline(&mut meta.currency);
-                                ui.menu_button("▾", |ui| {
+                                let input = ui.text_edit_singleline(&mut meta.currency);
+                                ui_target("metadata.currency.input", &input, Some(&meta.currency));
+                                let menu = ui.menu_button("▾", |ui| {
                                     for (index, choice) in currency::PRESETS.iter().enumerate() {
                                         if index == 10 {
                                             ui.separator();
                                         }
-                                        if ui
-                                            .button(localization::display_text(
-                                                &choice.caption(&self.language),
-                                            ))
-                                            .clicked()
-                                        {
+                                        let option = ui.button(localization::display_text(
+                                            &choice.caption(&self.language),
+                                        ));
+                                        let key = if choice.code.is_empty() {
+                                            choice.symbol
+                                        } else {
+                                            choice.code
+                                        };
+                                        ui_target(
+                                            &format!("metadata.currency.{key}"),
+                                            &option,
+                                            Some(&choice.caption(&self.language)),
+                                        );
+                                        if option.clicked() {
                                             meta.currency = choice.symbol.into();
                                             if choice.symbol == "person-hours" {
                                                 meta.currency_placement = "1 ?".into();
@@ -133,6 +141,7 @@ impl ErluApp {
                                         }
                                     }
                                 });
+                                ui_target("metadata.currency.open", &menu.response, None);
                             });
                             ui.end_row();
                             ui.label(self.ui_text("Symbol placement:"));
@@ -233,7 +242,9 @@ impl ErluApp {
                     });
                 ui.separator();
                 ui.horizontal(|ui| {
-                    if ui.button(self.ui_text("OK")).clicked() {
+                    let confirm = ui.button(self.ui_text("OK"));
+                    ui_target("metadata.confirm", &confirm, None);
+                    if confirm.clicked() {
                         #[cfg(not(target_arch = "wasm32"))]
                         if self.dialogs.new_metadata && self.has_document {
                             match std::env::var_os("ERLU_EXECUTABLE")

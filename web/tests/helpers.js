@@ -18,3 +18,22 @@ export async function ready(page) {
 export async function call(page,action,args={},revision) {
  return page.evaluate(async({action,args,revision})=>window.erluRuntime.call(action,args,revision),{action,args,revision});
 }
+
+// Read-only egui geometry; actions still travel through real mouse events.
+export async function clickUi(page,id) {
+ await expectTarget(page,id);
+ const target=await page.evaluate(id=>window.erluRuntime.uiSnapshot().targets[id],id);
+ const canvas=await page.locator('canvas').boundingBox();
+ await page.mouse.move(canvas.x+target.x+target.width/2,canvas.y+target.y+target.height/2);
+ const frame=await page.evaluate(()=>window.erluRuntime.uiSnapshot().frame);
+ await page.waitForFunction(frame=>window.erluRuntime.uiSnapshot().frame>frame,frame);
+ await expectTarget(page,id);
+ const current=await page.evaluate(id=>window.erluRuntime.uiSnapshot().targets[id],id);
+ await page.mouse.click(canvas.x+current.x+current.width/2,canvas.y+current.y+current.height/2,{delay:50});
+}
+async function expectTarget(page,id) {
+ await page.waitForFunction(id=>{
+  const target=window.erluRuntime.uiSnapshot().targets[id];
+  return target?.enabled&&target.width>0&&target.height>0;
+ },id);
+}

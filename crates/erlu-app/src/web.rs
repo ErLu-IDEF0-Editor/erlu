@@ -24,6 +24,10 @@ extern "C" {
     fn on_state(json: &str);
     #[wasm_bindgen(js_namespace=erluRuntime,js_name=setDirty)]
     fn set_dirty(dirty: bool);
+    #[wasm_bindgen(js_namespace=erluRuntime,js_name=_beginUiFrame)]
+    fn begin_ui_frame();
+    #[wasm_bindgen(js_namespace=erluRuntime,js_name=_recordUiTarget)]
+    fn record_ui_target(json: &str);
 }
 #[derive(Default)]
 pub struct WebEvents {
@@ -33,6 +37,15 @@ impl WebEvents {
     pub fn revoke(&self) {
         configure_ai(false, "");
     }
+}
+pub fn ui_frame() {
+    begin_ui_frame();
+}
+pub fn ui_target(id: &str, response: &eframe::egui::Response, value: Option<&str>) {
+    let zoom = response.ctx.zoom_factor();
+    let rect = response.rect;
+    record_ui_target(&json!({"id":id,"x":rect.min.x*zoom,"y":rect.min.y*zoom,
+        "width":rect.width()*zoom,"height":rect.height()*zoom,"enabled":response.enabled(),"value":value}).to_string());
 }
 pub fn load_plugin() {
     js_load_plugin();

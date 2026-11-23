@@ -13,6 +13,7 @@ export function validatePluginConfirmation(manifest,result,revision) {
 }
 export function createRuntime() {
   let handle, enabled = false, allowedOrigin = '', dirty = false, pendingCheckpoint, checkpointTimer;
+  let uiFrame=0, uiTargets=Object.create(null);
   const ports = new Set(), plugins = new Map(), results=[];
   const database = new Promise((resolve, reject) => {
     const request = indexedDB.open('erlu', 1);
@@ -106,5 +107,9 @@ export function createRuntime() {
   addEventListener('beforeunload',event=>{flushCheckpoint();if(dirty){event.preventDefault();event.returnValue='';}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCheckpoint();});
   async function recovery(){try{const db=await database;const request=db.transaction('recovery').objectStore('recovery').get('current');request.onsuccess=()=>{if(!request.result)return;const saved=JSON.parse(request.result);if(!saved.dirty)return;const panel=document.createElement('div');panel.id='recovery';const caption=document.createElement('span');caption.dataset.i18n='An unsaved document is available.';panel.append(caption);for(const [label,restore]of [['Restore',true],['Discard',false]]){const button=document.createElement('button');button.dataset.i18n=label;button.textContent=uiText(label);button.onclick=()=>{if(restore){const r=JSON.parse(handle.restore(JSON.stringify(saved)));if(!r.ok){alert(r.error.message);return;}}if(!restore){db.transaction('recovery','readwrite').objectStore('recovery').delete('current');}panel.remove();};panel.append(button);}document.body.append(panel);refreshRecovery();};}catch(error){console.error(error);}}
-  return {connectionStatus(){return {enabled,origin:allowedOrigin};},translate:uiText,attach(value){handle=value;for(const id of ['colors','responsibility_map','semantic_dictionary'])installPlugin(`./plugins/${id}/plugin.json`).catch(console.error);recovery();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error);},checkpoint,configureAI,loadPlugin,invokePlugin,onState,pluginSpecs(){return JSON.stringify(actionSpecs().filter(s=>s.name.startsWith("plugin_")&&!["plugin_load","plugin_list"].includes(s.name)));},invokePluginUI(...args){invokePlugin(...args).then(result=>results.push(result));},invokeRegistered(name,args,revision){call(name,JSON.parse(args),revision).then(result=>results.push(result));},pollResults(){return JSON.stringify(results.splice(0));},setDirty(value){dirty=value;},call,actionSpecs};
+  return {
+    _beginUiFrame(){uiFrame++;uiTargets=Object.create(null);},
+    _recordUiTarget(json){const target=JSON.parse(json);uiTargets[target.id]=target;},
+    uiSnapshot(){return {frame:uiFrame,targets:Object.fromEntries(Object.entries(uiTargets).map(([id,target])=>[id,{...target}]))};},
+    connectionStatus(){return {enabled,origin:allowedOrigin};},translate:uiText,attach(value){handle=value;for(const id of ['colors','responsibility_map','semantic_dictionary'])installPlugin(`./plugins/${id}/plugin.json`).catch(console.error);recovery();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error);},checkpoint,configureAI,loadPlugin,invokePlugin,onState,pluginSpecs(){return JSON.stringify(actionSpecs().filter(s=>s.name.startsWith("plugin_")&&!["plugin_load","plugin_list"].includes(s.name)));},invokePluginUI(...args){invokePlugin(...args).then(result=>results.push(result));},invokeRegistered(name,args,revision){call(name,JSON.parse(args),revision).then(result=>results.push(result));},pollResults(){return JSON.stringify(results.splice(0));},setDirty(value){dirty=value;},call,actionSpecs};
 }

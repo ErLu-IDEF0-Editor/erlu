@@ -33,5 +33,18 @@ the GUI and verifies revocation. The status method cannot grant access.
 
 Startup failures report the loading message, console errors and WebGL availability.
 CI retains failure screenshots, traces and an HTML report in the
-`erlu-browser-test-results` artifact. No retries or skipped browser projects are used
+`erlu-browser-test-results` artifact (or `erlu-pages-browser-test-results` for Pages). No retries or skipped browser projects are used
 to hide failures.
+
+The currency test opens Edit → Properties → ABC Units and selects EUR, CAD and
+conventional units with real mouse events. It locates egui controls through the
+read-only `erluRuntime.uiSnapshot()` geometry snapshot instead of fixed screen
+coordinates, waits for the draft symbol and dialog closure, and checks the stored
+symbol and SVG output. The snapshot is rebuilt each frame and cannot edit the
+application. Both desktop builds and the document/AI action API are unaffected.
+
+The Pages job runs Chromium under the repository subpath. To reproduce that path:
+
+```sh
+ERLU_BASE_PATH=/erlu/ CI=true npm --prefix web test -- --project chromium
+```

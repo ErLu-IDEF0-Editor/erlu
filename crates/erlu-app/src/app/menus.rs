@@ -15,18 +15,21 @@ impl ErluApp {
                     }
                 }
             });
-            ui.menu_button(self.ui_text("Edit"), |ui| {
+            let edit_menu=ui.menu_button(self.ui_text("Edit"), |ui| {
                 for (label,command) in [("Undo",Command::Undo{}),("Redo",Command::Redo{}),("Delete",Command::ObjectsDelete{ids:snapshot.view.selection.iter().copied().collect()})] {
                     if ui.button(self.ui_text(label)).clicked() {self.execute(command);ui.close();}
                 }
                 if ui.button(self.ui_text("Swap numbers…")).clicked() {self.dialogs.swap=true;ui.close();}
                 if ui.button(self.ui_text("Call Mechanism add")).clicked() {self.dialogs.call=true;ui.close();}
-                if ui.button(self.ui_text("Properties…")).clicked() {
+                let properties=ui.button(self.ui_text("Properties…"));
+                ui_target("menu.properties",&properties,None);
+                if properties.clicked() {
                     self.dialogs.metadata=Some(snapshot.document.meta.clone());
                     self.dialogs.state=snapshot.document.diagrams[&snapshot.view.diagram].state;
                     self.dialogs.new_metadata=false;self.dialogs.tab=0;ui.close();
                 }
             });
+            ui_target("menu.edit",&edit_menu.response,None);
             ui.menu_button(self.ui_text("Tools"), |ui| {
                 if ui.button(self.ui_text("Validation")).clicked() {
                     if let Some(r)=self.execute(Command::Validate{}) {self.dialogs.report_export=None;self.dialogs.report_confirm=None;self.dialogs.report=Some(self.validation_report(&r.result,snapshot));}
