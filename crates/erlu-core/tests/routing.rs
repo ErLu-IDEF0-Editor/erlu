@@ -318,3 +318,40 @@ fn inherited_boundary_coordinates_do_not_slide_with_an_end_segment() {
     assert_eq!(edited.interface, arrow.interface);
     assert_ne!(edited.to, arrow.to);
 }
+
+#[test]
+fn near_aligned_block_ports_stay_straight_after_a_small_block_move() {
+    let mut e = Engine::default();
+    e.call(
+        "objects_move",
+        json!({"positions":{"2":{"x":-90.0,"y":-10.0}}}),
+        None,
+    )
+    .unwrap();
+    let other = e
+        .call("block_create", json!({"pos":{"x":30.0,"y":-9.3}}), None)
+        .unwrap()
+        .result["id"]
+        .as_u64()
+        .unwrap();
+    let id=e.call("arrow_create",json!({"from":{"anchor":{"kind":"block","id":2,"port":"output","t":0.5}},"to":{"anchor":{"kind":"block","id":other,"port":"input","t":0.5}}}),None).unwrap().result["id"].as_u64().unwrap();
+    assert_eq!(
+        route(&e.document, 1, &e.document.diagrams[&1].arrows[&id]).len(),
+        2
+    );
+    let before = e.document.clone();
+    e.call(
+        "objects_move",
+        json!({"positions":{"2":{"x":-90.0,"y":-9.5}}}),
+        None,
+    )
+    .unwrap();
+    let a = &e.document.diagrams[&1].arrows[&id];
+    assert_eq!(route(&e.document, 1, a).len(), 2);
+    assert_eq!(
+        e.document.diagrams[&1].blocks[&other],
+        before.diagrams[&1].blocks[&other]
+    );
+    e.call("undo", json!({}), None).unwrap();
+    assert_eq!(e.document, before);
+}

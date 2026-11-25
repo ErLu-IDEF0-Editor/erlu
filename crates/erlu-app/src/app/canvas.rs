@@ -326,7 +326,7 @@ impl ErluApp {
                         call_ref: None,
                         extra: Extra::new(),
                     };
-                    routing::align_boundary(&doc, s.view.diagram, &mut arrow);
+                    routing::align_ports(&doc, s.view.diagram, &mut arrow);
                     let points = render::route(&doc, s.view.diagram, &arrow);
                     painter.add(egui::Shape::line(
                         points.into_iter().map(to_screen).collect(),

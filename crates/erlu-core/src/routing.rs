@@ -100,6 +100,41 @@ pub fn align_boundary(doc: &Document, diagram: Id, arrow: &mut Arrow) {
     }
 }
 
+/// Small horizontal mismatches between two block ports also snap straight.
+/// Only the attachment parameter changes; block positions stay untouched.
+pub fn align_ports(doc: &Document, diagram: Id, arrow: &mut Arrow) {
+    align_boundary(doc, diagram, arrow);
+    if arrow.interface.is_some() {
+        return;
+    }
+    let (
+        Anchor::Block {
+            port: Port::Output, ..
+        },
+        Anchor::Block {
+            id,
+            port: Port::Input,
+            ..
+        },
+    ) = (&arrow.from.anchor, &arrow.to.anchor)
+    else {
+        return;
+    };
+    let Some(source) = doc.endpoint(diagram, &arrow.from) else {
+        return;
+    };
+    let Some(target) = doc.endpoint(diagram, &arrow.to) else {
+        return;
+    };
+    let pos = doc.diagrams[&diagram].blocks[id].pos;
+    let t = (source.y - pos.y) / 26.5;
+    if (source.y - target.y).abs() <= ALIGN_DISTANCE && (0.0..=1.0).contains(&t) {
+        if let Anchor::Block { t: to_t, .. } = &mut arrow.to.anchor {
+            *to_t = t;
+        }
+    }
+}
+
 fn collinear(a: Point, b: Point, c: Point) -> bool {
     ((a.x - b.x).abs() < 1e-7 && (b.x - c.x).abs() < 1e-7)
         || ((a.y - b.y).abs() < 1e-7 && (b.y - c.y).abs() < 1e-7)
@@ -227,7 +262,7 @@ pub fn drag_segment(
     }
     out.bends = path.into_iter().skip(1).collect();
     out.bends.pop();
-    align_boundary(doc, diagram, &mut out);
+    align_ports(doc, diagram, &mut out);
     out
 }
 
@@ -274,7 +309,7 @@ pub fn normalize_moves(
 }
 pub fn normalize_arrow(doc: &mut Document, d: Id, id: Id) {
     let mut arrow = doc.diagrams[&d].arrows[&id].clone();
-    align_boundary(doc, d, &mut arrow);
+    align_ports(doc, d, &mut arrow);
     if !arrow.bends.is_empty() {
         let path = render::route(doc, d, &arrow);
         arrow.bends = path.into_iter().skip(1).collect();

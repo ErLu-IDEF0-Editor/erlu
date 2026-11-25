@@ -47,7 +47,9 @@ Geometry changes and their normalization share one undo entry. Rendering old fil
 also simplifies the displayed path without silently editing their stored model.
 
 A new block-to-frame connection within 2 mm of straight alignment moves the frame
-anchor to the block's coordinate. The opposite drawing direction uses the same
+anchor to the block's coordinate. Nearly aligned output/input ports between two
+blocks similarly slide the target attachment along its edge, leaving both blocks
+in place. The opposite drawing direction uses the same
 rule; inherited interfaces retain their fixed parent boundary position. Dragging
 a first or last segment slides its endpoint along the attached edge. Shared
 junction endpoints remain fixed unless the junction itself is moved.
