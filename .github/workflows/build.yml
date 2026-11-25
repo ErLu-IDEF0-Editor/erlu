@@ -41,9 +41,126 @@ jobs:
       - run: cargo test --workspace --locked
       - run: cargo build -p erlu --release --target ${{ matrix.target }} --locked
       - run: python scripts/test_mcp.py target/${{ matrix.target }}/release/erlu${{ runner.os == 'Windows' && '.exe' || '' }}
-      - run: python scripts/package.py --target ${{ matrix.target }}
+      - name: Prepare AppImage tooling and desktop integration
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y binutils desktop-file-utils file
+          tools="$RUNNER_TEMP/erlu-appimage-tools"
+          mkdir -p "$tools"
+          curl --fail --location --retry 3 --output "$tools/linuxdeploy.AppImage" \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage
+          curl --fail --location --retry 3 --output "$tools/runtime-x86_64" \
+            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          (
+            cd "$tools"
+            sha256sum --check --strict <<'SUMS'
+          c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d  linuxdeploy.AppImage
+          2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  runtime-x86_64
+          SUMS
+          )
+          cat > "$tools/AppRun" <<'SH'
+          #!/bin/sh
+          set -eu
+          appdir=${APPDIR:-$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)}
+          export ERLU_EXECUTABLE="${APPIMAGE:-$appdir/AppRun}"
+          exec "$appdir/usr/bin/erlu" "$@"
+          SH
+          # package.py creates the AppDir before calling linuxdeploy.
+          cat > "$tools/linuxdeploy" <<'SH'
+          #!/bin/sh
+          set -eu
+          tools=$(dirname -- "$0")
+          install -Dm644 "$GITHUB_WORKSPACE/packaging/linux/idef0.xml" \
+            "$PWD/erlu.AppDir/usr/share/mime/packages/erlu.xml"
+          export LDAI_RUNTIME_FILE="$tools/runtime-x86_64"
+          exec "$tools/linuxdeploy.AppImage" --custom-apprun "$tools/AppRun" "$@"
+          SH
+          chmod +x "$tools/linuxdeploy.AppImage" "$tools/linuxdeploy" "$tools/AppRun"
+          echo "$tools" >> "$GITHUB_PATH"
+      - name: Package native target
+        run: python scripts/package.py --target ${{ matrix.target }} ${{ runner.os == 'Linux' && '--appimage' || '' }}
       - uses: actions/upload-artifact@v4
-        with: {name: 'erlu-${{ matrix.target }}', path: 'dist/erlu-*'}
+        with:
+          name: erlu-${{ matrix.target }}
+          path: |
+            dist/erlu-${{ matrix.target }}/
+            dist/erlu-${{ matrix.target }}.${{ runner.os == 'Linux' && 'tar.gz' || 'zip' }}
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: erlu-appimage
+          path: dist/erlu-${{ matrix.target }}.AppImage
+          if-no-files-found: error
+  appimage-smoke:
+    needs: native
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            assets/icons
+            examples
+            packaging/linux
+            scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: erlu-appimage
+          path: appimage
+      - name: Install desktop smoke test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils libglib2.0-bin shared-mime-info \
+            libgl1-mesa-dri libglx-mesa0 libxkbcommon-x11-0 xvfb xdotool xauth
+      - name: Verify packaged desktop metadata and WASM plugins
+        run: |
+          image="$GITHUB_WORKSPACE/appimage/erlu-x86_64-unknown-linux-gnu.AppImage"
+          chmod +x "$image"
+          test ! -e "$GITHUB_WORKSPACE/plugins"
+          mkdir "$RUNNER_TEMP/erlu-appimage-smoke"
+          cd "$RUNNER_TEMP/erlu-appimage-smoke"
+          "$image" --appimage-extract >/dev/null
+          desktop=squashfs-root/erlu.desktop
+          desktop-file-validate "$desktop"
+          grep -Fx 'Exec=erlu %f' "$desktop"
+          grep -Fx 'Icon=erlu' "$desktop"
+          grep -Fx 'MimeType=application/x-erlu-idef0;' "$desktop"
+          cmp squashfs-root/erlu.svg "$GITHUB_WORKSPACE/assets/icons/erlu.svg"
+          cmp squashfs-root/.DirIcon "$GITHUB_WORKSPACE/assets/icons/erlu.svg"
+          cmp squashfs-root/usr/share/mime/packages/erlu.xml "$GITHUB_WORKSPACE/packaging/linux/idef0.xml"
+          for id in colors responsibility_map semantic_dictionary; do
+            plugin="squashfs-root/usr/bin/plugins/$id"
+            test -s "$plugin/plugin.json"
+            test -s "$plugin/dist/$id.wasm"
+          done
+          env -u ERLU_PLUGIN_DIR APPIMAGE_EXTRACT_AND_RUN=1 \
+            timeout 120s python3 "$GITHUB_WORKSPACE/scripts/test_mcp.py" "$image"
+      - name: Open an IDEF0 document through the packaged desktop entry
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          LC_ALL: C.UTF-8
+        run: |
+          image="$GITHUB_WORKSPACE/appimage/erlu-x86_64-unknown-linux-gnu.AppImage"
+          cd "$RUNNER_TEMP/erlu-appimage-smoke"
+          unset WAYLAND_DISPLAY WAYLAND_SOCKET
+          export XDG_DATA_HOME="$PWD/data" XDG_CONFIG_HOME="$PWD/config"
+          mkdir -p "$XDG_CONFIG_HOME"
+          desktop="$XDG_DATA_HOME/applications/erlu.desktop"
+          install -Dm644 squashfs-root/erlu.desktop "$desktop"
+          install -Dm644 squashfs-root/usr/share/mime/packages/erlu.xml \
+            "$XDG_DATA_HOME/mime/packages/erlu.xml"
+          sed -i "s|^Exec=erlu %f$|Exec=\"$image\" %f|" "$desktop"
+          update-mime-database "$XDG_DATA_HOME/mime"
+          update-desktop-database "$XDG_DATA_HOME/applications"
+          fixture="$PWD/appimage-smoke.idef0"
+          cp "$GITHUB_WORKSPACE/examples/order-fulfilment.idef0" "$fixture"
+          gio info -a standard::content-type "$fixture" | grep -Fx '  standard::content-type: application/x-erlu-idef0'
+          gio mime application/x-erlu-idef0 erlu.desktop
+          xvfb-run -a --server-args='-screen 0 1280x1024x24' bash -eu -s -- "$fixture" <<'SH'
+          gio open "$1"
+          timeout 30s xdotool search --sync --onlyvisible --name 'appimage-smoke[.]idef0.*erlu IDEF0$'
+          SH
   web:
     runs-on: ubuntu-24.04
     steps:

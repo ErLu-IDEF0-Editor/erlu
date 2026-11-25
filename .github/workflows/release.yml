@@ -15,28 +15,37 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Bundle static web and collect native archives
+      - name: Collect desktop archives and AppImage, then bundle the web build
         run: |
           python3 - <<'PY'
           import hashlib, pathlib, shutil
           root = pathlib.Path('artifacts')
           out = pathlib.Path('release')
           out.mkdir()
-          for folder in root.glob('erlu-*'):
-              if folder.name == 'erlu-web':
-                  continue
-              for archive in folder.rglob('*'):
-                  if archive.is_file() and (archive.name.endswith('.zip') or archive.name.endswith('.tar.gz')):
-                      shutil.copy2(archive, out / archive.name)
+          desktop_assets = {
+              'erlu-x86_64-unknown-linux-gnu': 'erlu-x86_64-unknown-linux-gnu.tar.gz',
+              'erlu-x86_64-pc-windows-msvc': 'erlu-x86_64-pc-windows-msvc.zip',
+              'erlu-aarch64-apple-darwin': 'erlu-aarch64-apple-darwin.zip',
+              'erlu-x86_64-apple-darwin': 'erlu-x86_64-apple-darwin.zip',
+              'erlu-appimage': 'erlu-x86_64-unknown-linux-gnu.AppImage',
+          }
+          for artifact, filename in desktop_assets.items():
+              source = root / artifact / filename
+              if not source.is_file():
+                  raise SystemExit(f'Missing release asset: {source}')
+              shutil.copy2(source, out / filename)
+          (out / desktop_assets['erlu-appimage']).chmod(0o755)
           web = root / 'erlu-web'
-          assert (web / 'index.html').is_file(), 'Missing web build'
+          if not (web / 'index.html').is_file():
+              raise SystemExit('Missing web build')
           shutil.make_archive(str(out / 'erlu-web'), 'zip', web)
-          files = sorted(out.iterdir())
-          assert len(files) == 5, f'Expected four desktop archives and one web archive: {files}'
-          (out / 'SHA256SUMS').write_text(''.join(
-              f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n' for p in files
-          ))
+          with (out / 'SHA256SUMS').open('w', encoding='ascii') as sums:
+              for filename in sorted([*desktop_assets.values(), 'erlu-web.zip']):
+                  with (out / filename).open('rb') as asset:
+                      digest = hashlib.file_digest(asset, 'sha256').hexdigest()
+                  sums.write(f'{digest}  {filename}\n')
           PY
+          (cd release && sha256sum --check --strict SHA256SUMS)
       - uses: actions/upload-artifact@v4
         with:
           name: erlu-release-bundles
