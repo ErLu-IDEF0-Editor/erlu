@@ -14,6 +14,7 @@ let language=Object.hasOwn(messages,requested)?requested:(Object.hasOwn(messages
 if(!Object.hasOwn(messages,language))language='en';
 const panel=document.getElementById('loading'),caption=document.getElementById('loading-message'),detail=document.getElementById('loading-detail'),progress=document.getElementById('loading-progress'),retry=document.getElementById('retry');
 let ready=false,registration,assets;
+window.erluReady=false;
 const text=key=>messages[language][key];
 const controls=document.createElement('aside');controls.id='web-controls';
 controls.style.cssText='position:fixed;bottom:4px;right:8px;z-index:8;background:#fff;color:#172b49;border:1px solid #cdd7e6;border-radius:5px;padding:3px 6px;font:14px sans-serif;display:flex;align-items:center;gap:6px;max-width:calc(100% - 30px)';
@@ -89,7 +90,21 @@ try{
  const chosen=picker.value;
  const result=JSON.parse(handle.call('language_set',JSON.stringify({language:chosen}),undefined));
  if(!result.ok)throw new Error(result.error.message);
- window.erluRuntime.attach(handle);ready=true;panel.hidden=true;
+ window.erluRuntime.attach(handle);
+ // start() initializes WebGL before the first egui frame and font upload.
+ // Keep startup visible until that initial work has actually been painted.
+ await new Promise((resolve,reject)=>{
+  let deadline=performance.now()+15000;
+  function painted(){
+   if(document.hidden){deadline=performance.now()+15000;setTimeout(painted,250);return;}
+   if(window.erluRuntime.uiSnapshot().frame>=2){requestAnimationFrame(()=>requestAnimationFrame(resolve));return;}
+   if(performance.now()>deadline){reject(new Error(text('webgl')));return;}
+   setTimeout(painted,25);
+  }
+  painted();
+ });
+ document.getElementById('erlu').focus();
+ ready=true;window.erluReady=true;panel.hidden=true;
  // The app's language menu and the browser selector stay synchronized.
  const onState=window.erluRuntime.onState;
  window.erluRuntime.onState=json=>{onState(json);language=JSON.parse(json).view.language;picker.value=language;labels();try{localStorage.setItem('erlu.editor.language',language);}catch{}};
