@@ -15,9 +15,9 @@ test('the app language menu lists and selects all six UN languages while renderi
  await call(page,'block_update',{id:2,title:'Language menu test'});
  for(const language of ['en','ru','fr','es','ar','zh']){
   await clickUi(page,'menu.language');
-  const options=await page.evaluate(()=>Object.keys(window.erluRuntime.uiSnapshot().targets).filter(id=>id.startsWith('language.')).sort());
-  expect(options).toEqual(['ar','en','es','fr','ru','zh'].map(code=>`language.${code}`).sort());
+  await expect.poll(()=>page.evaluate(()=>Object.keys(window.erluRuntime.uiSnapshot().targets).filter(id=>id.startsWith('language.')).sort())).toEqual(['ar','en','es','fr','ru','zh'].map(code=>`language.${code}`).sort());
   await clickUi(page,`language.${language}`);
+  await expect.poll(()=>page.evaluate(()=>Object.keys(window.erluRuntime.uiSnapshot().targets).some(id=>id.startsWith('language.')))).toBe(false);
   await expect.poll(async()=>(await call(page,'document_state')).response.result.view.language).toBe(language);
   await expect(page.locator('#editor-language')).toHaveValue(language);
  }
