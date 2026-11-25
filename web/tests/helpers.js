@@ -29,7 +29,15 @@ export async function clickUi(page,id) {
  await page.waitForFunction(frame=>window.erluRuntime.uiSnapshot().frame>frame,frame);
  await expectTarget(page,id);
  const current=await page.evaluate(id=>window.erluRuntime.uiSnapshot().targets[id],id);
- await page.mouse.click(canvas.x+current.x+current.width/2,canvas.y+current.y+current.height/2,{delay:50});
+ await page.mouse.move(canvas.x+current.x+current.width/2,canvas.y+current.y+current.height/2);
+ // egui consumes input on rendered frames. Deliver press and release on
+ // separate frames so a busy software renderer cannot swallow a quick click.
+ await page.mouse.down();
+ const pressed=await page.evaluate(()=>window.erluRuntime.uiSnapshot().frame);
+ await page.waitForFunction(frame=>window.erluRuntime.uiSnapshot().frame>frame,pressed,{timeout:10000});
+ await page.mouse.up();
+ const released=await page.evaluate(()=>window.erluRuntime.uiSnapshot().frame);
+ await page.waitForFunction(frame=>window.erluRuntime.uiSnapshot().frame>frame,released,{timeout:10000});
 }
 async function expectTarget(page,id) {
  await page.waitForFunction(id=>{
