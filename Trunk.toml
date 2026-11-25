@@ -17,7 +17,7 @@ command_arguments = ["scripts/build_site.py"]
 [watch]
 watch = [
   "crates", "assets", "Cargo.toml", "Cargo.lock", "Trunk.toml",
-  "web/index.html", "web/runtime.js", "web/plugin-worker.js", "web/sw.js",
+  "web/index.html", "web/startup.js", "web/runtime.js", "web/plugin-worker.js", "web/sw.js",
   "web/sdk", "web/manifest.webmanifest", "web/site",
   "scripts/build_site.py", "scripts/precache.py",
   "plugins/colors/src", "plugins/colors/wit", "plugins/colors/plugin.json",

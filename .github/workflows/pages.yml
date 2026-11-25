@@ -35,14 +35,16 @@ jobs:
         run: trunk build --release --locked
         env:
           NO_COLOR: 'true'
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium and Firefox
+        run: npx playwright install --with-deps chromium firefox
         working-directory: web
       - name: Test application under repository subpath
-        run: npm test -- --project chromium
+        run: xvfb-run -a --server-args="-screen 0 1600x1200x24 -dpi 96" npm test -- --project chromium --project firefox
         working-directory: web
         env:
           ERLU_BASE_PATH: /${{ github.event.repository.name }}/
+          ERLU_FIREFOX_HEADED: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
       - name: Upload browser failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

@@ -13,6 +13,7 @@ export function validatePluginConfirmation(manifest,result,revision) {
 }
 export function createRuntime() {
   let handle, enabled = false, allowedOrigin = '', dirty = false, pendingCheckpoint, checkpointTimer;
+  let recoveryChecked=false,recoveryPending=false;
   let uiFrame=0, uiTargets=Object.create(null);
   const ports = new Set(), plugins = new Map(), results=[];
   const database = new Promise((resolve, reject) => {
@@ -43,7 +44,7 @@ export function createRuntime() {
     pendingCheckpoint=json;clearTimeout(checkpointTimer);
     checkpointTimer=setTimeout(()=>flushCheckpoint(),200);
   }
-  async function flushCheckpoint(){if(!pendingCheckpoint)return;const value=pendingCheckpoint;pendingCheckpoint=null;try{const db=await database;const tx=db.transaction('recovery','readwrite');tx.objectStore('recovery').put(value,'current');}catch(error){console.error('Recovery unavailable',error);}}
+  async function flushCheckpoint(){if(!recoveryChecked||recoveryPending||!pendingCheckpoint)return;const value=pendingCheckpoint;pendingCheckpoint=null;try{const db=await database;const tx=db.transaction('recovery','readwrite');tx.objectStore('recovery').put(value,'current');}catch(error){console.error('Recovery unavailable',error);}}
   function configureAI(next,origin) {
     // Require an exact origin. No wildcard, opaque origin, or insecure remote origin.
     let valid=false;
@@ -106,7 +107,7 @@ export function createRuntime() {
   function onState(json){const state=JSON.parse(json);document.documentElement.lang=state.view.language;refreshRecovery();for(const port of ports)port.postMessage({protocol:PROTOCOL,type:'state',state});}
   addEventListener('beforeunload',event=>{flushCheckpoint();if(dirty){event.preventDefault();event.returnValue='';}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCheckpoint();});
-  async function recovery(){try{const db=await database;const request=db.transaction('recovery').objectStore('recovery').get('current');request.onsuccess=()=>{if(!request.result)return;const saved=JSON.parse(request.result);if(!saved.dirty)return;const panel=document.createElement('div');panel.id='recovery';const caption=document.createElement('span');caption.dataset.i18n='An unsaved document is available.';panel.append(caption);for(const [label,restore]of [['Restore',true],['Discard',false]]){const button=document.createElement('button');button.dataset.i18n=label;button.textContent=uiText(label);button.onclick=()=>{if(restore){const r=JSON.parse(handle.restore(JSON.stringify(saved)));if(!r.ok){alert(r.error.message);return;}}if(!restore){db.transaction('recovery','readwrite').objectStore('recovery').delete('current');}panel.remove();};panel.append(button);}document.body.append(panel);refreshRecovery();};}catch(error){console.error(error);}}
+  async function recovery(){try{const db=await database;const request=db.transaction('recovery').objectStore('recovery').get('current');request.onsuccess=()=>{recoveryChecked=true;if(!request.result){flushCheckpoint();return;}const saved=JSON.parse(request.result);if(!saved.dirty){flushCheckpoint();return;}recoveryPending=true;const panel=document.createElement('div');panel.id='recovery';const caption=document.createElement('span');caption.dataset.i18n='An unsaved document is available.';panel.append(caption);for(const [label,restore]of [['Restore',true],['Discard',false]]){const button=document.createElement('button');button.dataset.i18n=label;button.textContent=uiText(label);button.onclick=()=>{if(restore){const r=JSON.parse(handle.restore(JSON.stringify(saved)));if(!r.ok){alert(r.error.message);return;}}if(!restore){db.transaction('recovery','readwrite').objectStore('recovery').delete('current');}recoveryPending=false;pendingCheckpoint=null;clearTimeout(checkpointTimer);panel.remove();};panel.append(button);}document.body.append(panel);refreshRecovery();};}catch(error){console.error(error);}}
   return {
     _beginUiFrame(){uiFrame++;uiTargets=Object.create(null);},
     _recordUiTarget(json){const target=JSON.parse(json);uiTargets[target.id]=target;},

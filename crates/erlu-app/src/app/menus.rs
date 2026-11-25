@@ -53,13 +53,6 @@ impl ErluApp {
                         self.execute(Command::ViewSet{zoom:None,center:None,theme:Some(theme)});ui.close();
                     }
                 }
-                ui.separator();
-                ui.label(self.ui_text("Language"));
-                for (language,label) in localization::LANGUAGES {
-                    if ui.selectable_label(self.language==language,localization::display_text(label)).clicked() {
-                        self.language=language.into();self.execute(Command::LanguageSet{language:language.into()});ui.close();
-                    }
-                }
             });
             let specs=self.plugin_specs();
             ui.menu_button(self.ui_text("Plugins"), |ui| {
@@ -102,6 +95,16 @@ impl ErluApp {
                         }
                     }
                 });
+            let language_menu=ui.menu_button(self.ui_text("Language"), |ui| {
+                for (language,label) in localization::LANGUAGES {
+                    let option=ui.selectable_label(self.language==language,localization::display_text(label));
+                    ui_target(&format!("language.{}",language),&option,Some(language));
+                    if option.clicked() {
+                        self.language=language.into();self.execute(Command::LanguageSet{language:language.into()});ui.close();
+                    }
+                }
+            });
+            ui_target("menu.language",&language_menu.response,None);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.label(format!("{}{}",if snapshot.dirty(){"● "}else{""},snapshot.document.meta.title));
             });

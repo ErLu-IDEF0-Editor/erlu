@@ -4,6 +4,7 @@ const basePath=process.env.ERLU_BASE_PATH??'/';
 if(!/^\/(?:[A-Za-z0-9_.-]+\/)*$/.test(basePath))throw new Error('Invalid ERLU_BASE_PATH');
 const baseURL=`http://127.0.0.1:8080${basePath}`;
 const chromiumPath=process.env.CHROMIUM_PATH;
+const firefoxPath=process.env.FIREFOX_PATH;
 const firefoxHeaded=process.env.ERLU_FIREFOX_HEADED==='1';
 
 export default defineConfig({
@@ -20,7 +21,7 @@ export default defineConfig({
    args:['--no-sandbox','--enable-webgl','--use-gl=angle','--use-angle=swiftshader'],
   }}},
   ...(!chromiumPath||process.env.ERLU_ALL_BROWSERS==='1' ?[
-   {name:'firefox',use:{browserName:'firefox',headless:!firefoxHeaded,launchOptions:{firefoxUserPrefs:{'webgl.force-enabled':true,'layout.css.devPixelsPerPx':'1.0'}}}},
+   {name:'firefox',use:{browserName:'firefox',headless:!firefoxHeaded,launchOptions:{...(firefoxPath?{executablePath:firefoxPath}:{}),firefoxUserPrefs:{'webgl.force-enabled':true,'layout.css.devPixelsPerPx':'1.0'}}}},
    {name:'webkit',use:{browserName:'webkit'}},
   ]:[]),
  ],

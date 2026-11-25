@@ -48,3 +48,5 @@ The Pages job runs Chromium under the repository subpath. To reproduce that path
 ```sh
 ERLU_BASE_PATH=/erlu/ CI=true npm --prefix web test -- --project chromium
 ```
+
+`FIREFOX_PATH` can select a Nix-compatible Firefox executable. Startup regression tests cover failed WASM downloads, all six language-menu entries, continued frame rendering, and online navigation with a stale editor in the offline cache.
