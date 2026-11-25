@@ -2,7 +2,7 @@ export async function ready(page) {
  const errors=[];
  page.on('pageerror',error=>errors.push(error.message));
  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
- await page.goto('./');
+ await page.goto('./editor.html');
  try {
   await page.waitForFunction(()=>window.erluStartupError||window.erluRuntime?.actionSpecs?.()?.length>30,null,{timeout:30000});
   const failure=await page.evaluate(()=>window.erluStartupError);
