@@ -93,7 +93,7 @@ pub fn nearest_on_path(p: Point, path: &[Point]) -> Option<(Point, usize, f64)> 
         })
         .min_by(|a, b| a.2.total_cmp(&b.2))
 }
-fn direction(ep: &Endpoint, from: bool) -> Point {
+fn direction(ep: &Endpoint, _from: bool) -> Point {
     match ep.anchor {
         Anchor::Block { port, .. } => match port {
             Port::Input => Point::new(-1., 0.),
@@ -107,7 +107,7 @@ fn direction(ep: &Endpoint, from: bool) -> Point {
             Port::Control => Point::new(0., 1.),
             Port::Mechanism => Point::new(0., -1.),
         },
-        Anchor::Junction { .. } => Point::new(if from { 1. } else { -1. }, 0.),
+        Anchor::Junction { .. } => Point::default(),
     }
 }
 pub fn route(doc: &Document, d: Id, a: &Arrow) -> Vec<Point> {
@@ -129,8 +129,17 @@ pub fn route(doc: &Document, d: Id, a: &Arrow) -> Vec<Point> {
         .values()
         .map(|b| (b.pos - Point::new(1.5, 1.5), b.pos + Point::new(54.5, 28.)))
         .collect::<Vec<_>>();
-    let mut path = vec![start, s];
-    let mut anchors = a.bends.clone();
+    let mut path = vec![s];
+    let mut anchors: Vec<_> = a
+        .bends
+        .iter()
+        .copied()
+        .filter(|p| {
+            !obstacles
+                .iter()
+                .any(|(lo, hi)| p.x > lo.x && p.x < hi.x && p.y > lo.y && p.y < hi.y)
+        })
+        .collect();
     anchors.push(e);
     let mut current = s;
     for target in anchors {
@@ -138,8 +147,10 @@ pub fn route(doc: &Document, d: Id, a: &Arrow) -> Vec<Point> {
         path.extend(leg.into_iter().skip(1));
         current = target;
     }
-    path.push(end);
-    simplify(path)
+    let mut out = vec![start];
+    out.extend(crate::routing::simplify(path, &obstacles));
+    out.push(end);
+    simplify(out)
 }
 fn simplify(path: Vec<Point>) -> Vec<Point> {
     let mut out: Vec<Point> = vec![];

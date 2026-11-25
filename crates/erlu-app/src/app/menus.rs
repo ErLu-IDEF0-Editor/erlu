@@ -41,7 +41,7 @@ impl ErluApp {
                 }
                 if ui.button(self.ui_text("Node tree…")).clicked() {self.dialogs.tree=true;ui.close();}
             });
-            ui.menu_button(self.ui_text("View"), |ui| {
+            let view_menu=ui.menu_button(self.ui_text("View"), |ui| {
                 for (label,zoom) in [("Fit",1.),("Scale +",snapshot.view.zoom*1.1),("Scale -",snapshot.view.zoom/1.1)] {
                     if ui.button(self.ui_text(label)).clicked() {
                         self.execute(if label=="Fit" {Command::ViewFit{}} else {Command::ViewSet{zoom:Some(zoom.clamp(0.05,40.)),center:None,theme:None}});
@@ -53,7 +53,20 @@ impl ErluApp {
                         self.execute(Command::ViewSet{zoom:None,center:None,theme:Some(theme)});ui.close();
                     }
                 }
+                ui.separator();
+                let mut enabled=snapshot.view.grid.enabled;
+                let grid=ui.checkbox(&mut enabled,self.ui_text("Grid mode"));
+                ui_target("view.grid",&grid,Some(if enabled {"true"}else{"false"}));
+                if grid.changed(){self.execute(Command::GridSet{enabled,spacing:None});}
+                let mut spacing=snapshot.view.grid.spacing;
+                ui.horizontal(|ui|{
+                    ui.label(self.ui_text("Grid spacing (mm)"));
+                    if ui.add(egui::DragValue::new(&mut spacing).range(1.0..=50.0).speed(1.0)).changed(){
+                        self.execute(Command::GridSet{enabled,spacing:Some(spacing)});
+                    }
+                });
             });
+            ui_target("menu.view",&view_menu.response,None);
             let specs=self.plugin_specs();
             ui.menu_button(self.ui_text("Plugins"), |ui| {
                 if ui.button(self.ui_text("Set item color...")).clicked() {self.dialogs.colors=true;ui.close();}

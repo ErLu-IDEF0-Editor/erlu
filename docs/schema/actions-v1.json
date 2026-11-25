@@ -6872,6 +6872,269 @@
     "read_only": false
   },
   {
+    "name": "grid_set",
+    "description": "erlu: grid set. Coordinates are in millimetres; IDs are stable within the document.",
+    "input_schema": {
+      "$defs": {
+        "Anchor": {
+          "oneOf": [
+            {
+              "properties": {
+                "id": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "block",
+                  "type": "string"
+                },
+                "port": {
+                  "$ref": "#/$defs/Port"
+                },
+                "t": {
+                  "default": 0.5,
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "id",
+                "port"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "id": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "junction",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "id"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "boundary",
+                  "type": "string"
+                },
+                "port": {
+                  "$ref": "#/$defs/Port"
+                },
+                "t": {
+                  "format": "double",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "port",
+                "t"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "DiagramState": {
+          "enum": [
+            "working",
+            "draft",
+            "recommended",
+            "publication"
+          ],
+          "type": "string"
+        },
+        "Endpoint": {
+          "properties": {
+            "anchor": {
+              "$ref": "#/$defs/Anchor"
+            },
+            "tunneled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "anchor"
+          ],
+          "type": "object"
+        },
+        "Metadata": {
+          "additionalProperties": true,
+          "properties": {
+            "author": {
+              "default": "",
+              "type": "string"
+            },
+            "context": {
+              "default": "",
+              "type": "string"
+            },
+            "currency": {
+              "default": "$",
+              "type": "string"
+            },
+            "currency_placement": {
+              "default": "1?",
+              "type": "string"
+            },
+            "date": {
+              "default": "",
+              "type": "string"
+            },
+            "footer_node_override": {
+              "default": "",
+              "type": "string"
+            },
+            "footer_number_override": {
+              "default": "",
+              "type": "string"
+            },
+            "footer_title_override": {
+              "default": "",
+              "type": "string"
+            },
+            "initials": {
+              "default": "",
+              "type": "string"
+            },
+            "model_abbreviation": {
+              "default": "",
+              "type": "string"
+            },
+            "notes": {
+              "default": "",
+              "type": "string"
+            },
+            "number": {
+              "default": "",
+              "type": "string"
+            },
+            "organization": {
+              "default": "",
+              "type": "string"
+            },
+            "page_size": {
+              "default": "A4",
+              "type": "string"
+            },
+            "portrait": {
+              "default": false,
+              "type": "boolean"
+            },
+            "project": {
+              "default": "",
+              "type": "string"
+            },
+            "purpose": {
+              "default": "",
+              "type": "string"
+            },
+            "reader": {
+              "default": "",
+              "type": "string"
+            },
+            "reader_date": {
+              "default": "",
+              "type": "string"
+            },
+            "revision": {
+              "default": "",
+              "type": "string"
+            },
+            "time_unit": {
+              "default": "days",
+              "type": "string"
+            },
+            "title": {
+              "default": "",
+              "type": "string"
+            },
+            "used_at": {
+              "default": "",
+              "type": "string"
+            },
+            "viewpoint": {
+              "default": "",
+              "type": "string"
+            },
+            "with_footer": {
+              "default": true,
+              "type": "boolean"
+            },
+            "with_header": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "Point": {
+          "properties": {
+            "x": {
+              "format": "double",
+              "type": "number"
+            },
+            "y": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y"
+          ],
+          "type": "object"
+        },
+        "Port": {
+          "enum": [
+            "input",
+            "control",
+            "output",
+            "mechanism"
+          ],
+          "type": "string"
+        },
+        "Theme": {
+          "enum": [
+            "light",
+            "dark",
+            "system"
+          ],
+          "type": "string"
+        }
+      },
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "spacing": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "enabled"
+      ],
+      "type": "object"
+    },
+    "read_only": false
+  },
+  {
     "name": "view_fit",
     "description": "erlu: view fit. Coordinates are in millimetres; IDs are stable within the document.",
     "input_schema": {

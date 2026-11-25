@@ -170,6 +170,12 @@ impl ErluApp {
             let mut state = shared.lock().unwrap();
             state.view.theme = theme;
             state.view.language = language.clone();
+            state.view.grid = cc
+                .storage
+                .and_then(|s| s.get_string("grid"))
+                .and_then(|s| serde_json::from_str::<routing::Grid>(&s).ok())
+                .filter(|g| g.spacing.is_finite() && (1.0..=50.0).contains(&g.spacing))
+                .unwrap_or_default();
         }
         Self {
             shared,
@@ -582,6 +588,10 @@ impl eframe::App for ErluApp {
     }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         storage.set_string("language", self.language.clone());
+        storage.set_string(
+            "grid",
+            serde_json::to_string(&self.shared.lock().unwrap().view.grid).unwrap(),
+        );
         storage.set_string(
             "theme",
             serde_json::to_string(&self.shared.lock().unwrap().view.theme).unwrap(),

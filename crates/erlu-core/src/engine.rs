@@ -25,6 +25,8 @@ pub struct View {
     pub theme: Theme,
     pub language: String,
     pub resolved_dark: bool,
+    #[serde(default)]
+    pub grid: routing::Grid,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Response {
@@ -59,6 +61,7 @@ impl Engine {
                 theme: Theme::System,
                 language: "en".into(),
                 resolved_dark: false,
+                grid: routing::Grid::default(),
             },
             high_water: document.id_sequence,
             saved: document.clone(),
@@ -101,6 +104,7 @@ impl Engine {
         restored.revision = self.revision + 1;
         restored.view.language = self.view.language.clone();
         restored.view.theme = self.view.theme;
+        restored.view.grid = self.view.grid;
         *self = restored;
         Ok(())
     }
@@ -205,11 +209,13 @@ impl Engine {
                 let doc = Document::with_meta(*meta);
                 let rev = self.revision;
                 let theme = self.view.theme;
+                let grid = self.view.grid;
                 let language = self.view.language.clone();
                 let resolved_dark = self.view.resolved_dark;
                 *self = Self::new(doc)?;
                 self.revision = rev;
                 self.view.theme = theme;
+                self.view.grid = grid;
                 self.view.language = language;
                 self.view.resolved_dark = resolved_dark;
                 Ok(json!({}))
@@ -227,11 +233,13 @@ impl Engine {
                 let doc = read_document(&content)?;
                 let rev = self.revision;
                 let theme = self.view.theme;
+                let grid = self.view.grid;
                 let language = self.view.language.clone();
                 let resolved_dark = self.view.resolved_dark;
                 *self = Self::new(doc)?;
                 self.revision = rev;
                 self.view.theme = theme;
+                self.view.grid = grid;
                 self.view.language = language;
                 self.view.resolved_dark = resolved_dark;
                 Ok(json!({}))
@@ -314,6 +322,8 @@ impl Engine {
                 Ok(json!({}))
             }
             Command::ObjectsMove { positions } => {
+                let moved: BTreeSet<_> = positions.keys().copied().collect();
+                let before = self.document.clone();
                 for (id, pos) in positions {
                     let d = self.object_diagram(id)?;
                     let pos_block = clamp_block(&self.document, pos);
@@ -329,6 +339,7 @@ impl Engine {
                         ));
                     }
                 }
+                routing::normalize_moves(&before, &mut self.document, &moved);
                 Ok(json!({}))
             }
             Command::ObjectsDelete { ids } => {
@@ -401,6 +412,7 @@ impl Engine {
                 label_hidden,
                 bends,
             } => {
+                let geometry_changed = from.is_some() || to.is_some() || bends.is_some();
                 let inherited = self.arrow_mut(id)?.interface.is_some();
                 if inherited && label.is_some() {
                     return Err(error(
@@ -428,6 +440,9 @@ impl Engine {
                 }
                 if let Some(v) = bends {
                     a.bends = v;
+                }
+                if geometry_changed {
+                    self.normalize_arrow_geometry(self.object_diagram(id)?, id);
                 }
                 self.propagate_labels(id);
                 self.sync_tunnels(id)?;
@@ -651,6 +666,19 @@ impl Engine {
                 }
                 Ok(json!({}))
             }
+            Command::GridSet { enabled, spacing } => {
+                if spacing.is_some_and(|v| !v.is_finite() || !(1.0..=50.0).contains(&v)) {
+                    return Err(error(
+                        "invalid_arguments",
+                        "Grid spacing must be in [1, 50] mm",
+                    ));
+                }
+                self.view.grid.enabled = enabled;
+                if let Some(spacing) = spacing {
+                    self.view.grid.spacing = spacing;
+                }
+                Ok(json!({}))
+            }
             Command::LanguageSet { language } => {
                 if !crate::localization::supported(&language) {
                     return Err(error(
@@ -815,7 +843,11 @@ impl Engine {
                 extra: Extra::new(),
             },
         );
+        self.normalize_arrow_geometry(d, id);
         Ok(id)
+    }
+    fn normalize_arrow_geometry(&mut self, d: Id, id: Id) {
+        routing::normalize_arrow(&mut self.document, d, id);
     }
     fn renumber_children(&mut self, id: Id) -> Result<()> {
         let b = self.document.block(id).unwrap().clone();

@@ -1,0 +1,180 @@
+{
+  "diagrams": {
+    "1": {
+      "arrows": {
+        "3": {
+          "bends": [
+            {
+              "x": 23.815280266923153,
+              "y": -10.183752718359257
+            },
+            {
+              "x": 23.815280266923153,
+              "y": 26.58220581356339
+            }
+          ],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "id": 2,
+              "kind": "block",
+              "port": "output",
+              "t": 0.3986606345103856
+            },
+            "tunneled": false
+          },
+          "id": 3,
+          "interface": null,
+          "label": "",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 4,
+              "kind": "junction"
+            },
+            "tunneled": false
+          }
+        },
+        "5": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "id": 4,
+              "kind": "junction"
+            },
+            "tunneled": false
+          },
+          "id": 5,
+          "interface": null,
+          "label": "",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": 3,
+          "to": {
+            "anchor": {
+              "kind": "boundary",
+              "port": "output",
+              "t": 0.44919867290525584
+            },
+            "tunneled": false
+          }
+        },
+        "6": {
+          "bends": [],
+          "call_ref": null,
+          "color": null,
+          "from": {
+            "anchor": {
+              "id": 2,
+              "kind": "block",
+              "port": "output",
+              "t": 0.6193825124893381
+            },
+            "tunneled": false
+          },
+          "id": 6,
+          "interface": null,
+          "label": "",
+          "label_hidden": false,
+          "label_offset": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "label_source": null,
+          "to": {
+            "anchor": {
+              "id": 4,
+              "kind": "junction"
+            },
+            "tunneled": false
+          }
+        }
+      },
+      "blocks": {
+        "2": {
+          "child": null,
+          "color": null,
+          "id": 2,
+          "number": "A0",
+          "pos": {
+            "x": -33.18471973307685,
+            "y": -20.748259532884475
+          },
+          "price": null,
+          "title": "Function"
+        }
+      },
+      "id": 1,
+      "junctions": {
+        "4": {
+          "id": 4,
+          "pos": {
+            "x": 33.658608343500205,
+            "y": -4.334622951917012
+          }
+        }
+      },
+      "notation": "idef0",
+      "parent_block": null,
+      "state": "working"
+    }
+  },
+  "extensions": {},
+  "features": {
+    "optional": [],
+    "required": [
+      "abc.costs",
+      "appearance.colors",
+      "idef0",
+      "idef0.calls",
+      "idef0.decomposition",
+      "idef0.tunnels"
+    ]
+  },
+  "format": "erlu",
+  "format_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "id_sequence": 7,
+  "meta": {
+    "author": "",
+    "context": "",
+    "currency": "$",
+    "currency_placement": "1?",
+    "date": "",
+    "footer_node_override": "",
+    "footer_number_override": "",
+    "footer_title_override": "",
+    "initials": "",
+    "model_abbreviation": "",
+    "notes": "",
+    "number": "",
+    "organization": "",
+    "page_size": "A4",
+    "portrait": false,
+    "project": "",
+    "purpose": "",
+    "reader": "",
+    "reader_date": "",
+    "revision": "",
+    "time_unit": "days",
+    "title": "",
+    "used_at": "",
+    "viewpoint": "",
+    "with_footer": true,
+    "with_header": true
+  },
+  "root": 1
+}

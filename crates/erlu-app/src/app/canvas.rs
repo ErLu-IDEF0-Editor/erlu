@@ -35,6 +35,12 @@ impl ErluApp {
         if pressed(Modifiers::COMMAND, Key::N) {
             self.request(Pending::New);
         }
+        if pressed(Modifiers::NONE, Key::G) {
+            self.execute(Command::GridSet {
+                enabled: !s.view.grid.enabled,
+                spacing: None,
+            });
+        }
         if pressed(Modifiers::NONE, Key::F) {
             self.execute(Command::ViewFit {});
         }
@@ -54,6 +60,7 @@ impl ErluApp {
     pub(super) fn canvas(&mut self, ui: &mut egui::Ui, s: &Engine) {
         let (response, painter) =
             ui.allocate_painter(ui.available_size(), egui::Sense::click_and_drag());
+        ui_target("canvas", &response, None);
         let rect = response.rect;
         let page = s.document.page();
         let base = ((rect.width() - 40.) / page.x as f32)
@@ -80,7 +87,7 @@ impl ErluApp {
         self.cursor = point;
         let mut preview = s.document.clone();
         if let (Some(Drag::Move { start, positions }), Some(p)) = (&self.drag, point) {
-            let delta = p - *start;
+            let delta = drag_delta(positions, p - *start, s.view.grid);
             for (id, old) in positions {
                 if let Some(d) = preview.diagram_of(*id) {
                     if let Some(b) = preview.diagrams.get_mut(&d).unwrap().blocks.get_mut(id) {
@@ -92,6 +99,37 @@ impl ErluApp {
                     }
                 }
             }
+            routing::normalize_moves(
+                &s.document,
+                &mut preview,
+                &positions.keys().copied().collect(),
+            );
+        }
+        if let (
+            Some(Drag::Segment {
+                id,
+                index,
+                path,
+                start,
+            }),
+            Some(p),
+        ) = (&self.drag, point)
+        {
+            let arrow = routing::drag_segment(
+                &s.document,
+                s.view.diagram,
+                &s.document.diagrams[&s.view.diagram].arrows[id],
+                path.clone(),
+                *index,
+                p - *start,
+                s.view.grid,
+            );
+            preview
+                .diagrams
+                .get_mut(&s.view.diagram)
+                .unwrap()
+                .arrows
+                .insert(*id, arrow);
         }
         if let (Some(Drag::Label { id, start, offset }), Some(p)) = (&self.drag, point) {
             preview
@@ -109,7 +147,7 @@ impl ErluApp {
             Theme::System => ui.visuals().dark_mode,
         };
         let scene = render::scene_localized(&preview, s.view.diagram, dark, None, &self.language);
-        for primitive in scene.primitives {
+        for (primitive_index, primitive) in scene.primitives.into_iter().enumerate() {
             match primitive {
                 Primitive::Rect {
                     min,
@@ -203,6 +241,28 @@ impl ErluApp {
                     );
                 }
             }
+
+            if primitive_index == 0 && s.view.grid.enabled {
+                let (lo, hi) = s.document.content();
+                let spacing = s.view.grid.spacing;
+                if spacing.is_finite() && spacing >= 1.0 {
+                    let step = spacing * (10.0 / (spacing * scale as f64)).ceil().max(1.0);
+                    let color = if dark {
+                        Color32::from_gray(70)
+                    } else {
+                        Color32::from_gray(205)
+                    };
+                    let mut x = (lo.x / step).ceil() * step;
+                    while x < hi.x {
+                        let mut y = (lo.y / step).ceil() * step;
+                        while y < hi.y {
+                            painter.circle_filled(to_screen(Point::new(x, y)), 0.8, color);
+                            y += step;
+                        }
+                        x += step;
+                    }
+                }
+            }
         }
         let diag = &s.document.diagrams[&s.view.diagram];
         for id in &s.view.selection {
@@ -215,8 +275,8 @@ impl ErluApp {
                     egui::StrokeKind::Outside,
                 );
             }
-            if let Some(a) = diag.arrows.get(id) {
-                let path = render::route(&s.document, s.view.diagram, a);
+            if let Some(a) = preview.diagrams[&s.view.diagram].arrows.get(id) {
+                let path = render::route(&preview, s.view.diagram, a);
                 painter.add(egui::Shape::line(
                     path.iter().copied().map(to_screen).collect(),
                     Stroke::new(1.5, Color32::from_rgb(70, 150, 240)),
@@ -235,12 +295,43 @@ impl ErluApp {
         if let Some(p) = point {
             match &self.drag {
                 Some(Drag::Connect { from, .. }) => {
-                    if let Some(start) = s.document.endpoint(s.view.diagram, from) {
-                        painter.line_segment(
-                            [to_screen(start), to_screen(p)],
-                            Stroke::new(1.5, Color32::LIGHT_BLUE),
-                        );
-                    }
+                    let mut doc = preview.clone();
+                    let mut target = hit_endpoint(s, p, 10.0 / scale as f64).unwrap_or_else(|| {
+                        doc.diagrams
+                            .get_mut(&s.view.diagram)
+                            .unwrap()
+                            .junctions
+                            .insert(
+                                u64::MAX,
+                                Junction {
+                                    id: u64::MAX,
+                                    pos: s.view.grid.snap(p),
+                                    extra: Extra::new(),
+                                },
+                            );
+                        Endpoint::new(Anchor::Junction { id: u64::MAX })
+                    });
+                    routing::snap_endpoint(&doc, s.view.diagram, &mut target, s.view.grid);
+                    let mut arrow = Arrow {
+                        id: 0,
+                        from: from.clone(),
+                        to: target,
+                        bends: vec![],
+                        label: String::new(),
+                        label_offset: Point::default(),
+                        label_hidden: false,
+                        label_source: None,
+                        color: None,
+                        interface: None,
+                        call_ref: None,
+                        extra: Extra::new(),
+                    };
+                    routing::align_boundary(&doc, s.view.diagram, &mut arrow);
+                    let points = render::route(&doc, s.view.diagram, &arrow);
+                    painter.add(egui::Shape::line(
+                        points.into_iter().map(to_screen).collect(),
+                        Stroke::new(1.5, Color32::LIGHT_BLUE),
+                    ));
                 }
                 Some(Drag::Branch { point: start, .. }) => {
                     painter.line_segment(
@@ -269,7 +360,10 @@ impl ErluApp {
         let input = ui.input(|i| i.clone());
         let Some(p) = point else { return };
         let hit = hit_object(s, p, 7. / scale as f64);
-        let port = hit_endpoint(s, p, 10. / scale as f64);
+        let mut port = hit_endpoint(s, p, 10. / scale as f64);
+        if let Some(endpoint) = &mut port {
+            routing::snap_endpoint(&s.document, s.view.diagram, endpoint, s.view.grid);
+        }
         let mods = input.modifiers;
         if response.clicked_by(PointerButton::Secondary) {
             if let Some((block, reference)) = self.pending_call.take() {
@@ -293,7 +387,7 @@ impl ErluApp {
                 if inside(p, lo, hi) {
                     self.execute(Command::BlockCreate {
                         diagram: None,
-                        pos: p - Point::new(26.5, 13.25),
+                        pos: s.view.grid.snap(p - Point::new(26.5, 13.25)),
                         title: String::new(),
                     });
                 }
@@ -489,7 +583,7 @@ impl ErluApp {
         {
             let command = match drag {
                 Drag::Move { start, positions } => {
-                    let delta = p - start;
+                    let delta = drag_delta(&positions, p - start, s.view.grid);
                     if delta.distance(Point::default()) < 0.1 {
                         None
                     } else {
@@ -589,29 +683,26 @@ impl ErluApp {
                 Drag::Segment {
                     id,
                     index,
-                    mut path,
+                    path,
                     start,
                 } => {
-                    if index + 1 < path.len() {
-                        let delta = p - start;
-                        if (path[index].x - path[index + 1].x).abs() < 1e-6 {
-                            path[index].x += delta.x;
-                            path[index + 1].x += delta.x;
-                        } else {
-                            path[index].y += delta.y;
-                            path[index + 1].y += delta.y;
-                        }
-                    }
-                    let bends = path.into_iter().skip(1).collect::<Vec<_>>();
-                    let bends = bends[..bends.len().saturating_sub(1)].to_vec();
+                    let edited = routing::drag_segment(
+                        &s.document,
+                        s.view.diagram,
+                        &diag.arrows[&id],
+                        path,
+                        index,
+                        p - start,
+                        s.view.grid,
+                    );
                     Some(Command::ArrowUpdate {
                         id,
-                        from: None,
-                        to: None,
+                        from: Some(edited.from),
+                        to: Some(edited.to),
                         label: None,
                         label_offset: None,
                         label_hidden: None,
-                        bends: Some(bends),
+                        bends: Some(edited.bends),
                     })
                 }
                 Drag::Box { start } => {
@@ -699,4 +790,11 @@ impl ErluApp {
             }
         }
     }
+}
+
+fn drag_delta(positions: &BTreeMap<Id, Point>, delta: Point, grid: routing::Grid) -> Point {
+    positions
+        .values()
+        .next()
+        .map_or(delta, |origin| grid.snap(*origin + delta) - *origin)
 }

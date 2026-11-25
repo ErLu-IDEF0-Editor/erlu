@@ -113,6 +113,10 @@ pub enum Command {
         center: Option<Point>,
         theme: Option<Theme>,
     },
+    GridSet {
+        enabled: bool,
+        spacing: Option<f64>,
+    },
     ViewFit {},
     LanguageSet {
         language: String,

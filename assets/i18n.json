@@ -319,7 +319,9 @@
     "Hong Kong dollar": "Hong Kong dollar",
     "Singapore dollar": "Singapore dollar",
     "Russian ruble": "Russian ruble",
-    "Conventional units": "Conventional units"
+    "Conventional units": "Conventional units",
+    "Grid mode": "Grid mode",
+    "Grid spacing (mm)": "Grid spacing (mm)"
   },
   "ru": {
     "Arrow label": "Подпись стрелки",
@@ -641,7 +643,9 @@
     "Hong Kong dollar": "Гонконгский доллар",
     "Singapore dollar": "Сингапурский доллар",
     "Russian ruble": "Российский рубль",
-    "Conventional units": "Условные единицы («жучок»)"
+    "Conventional units": "Условные единицы («жучок»)",
+    "Grid mode": "Режим сетки",
+    "Grid spacing (mm)": "Шаг сетки (мм)"
   },
   "fr": {
     "Arrow label": "Libellé de la flèche",
@@ -963,7 +967,9 @@
     "Hong Kong dollar": "Dollar de Hong Kong",
     "Singapore dollar": "Dollar de Singapour",
     "Russian ruble": "Rouble russe",
-    "Conventional units": "Unités conventionnelles"
+    "Conventional units": "Unités conventionnelles",
+    "Grid mode": "Mode grille",
+    "Grid spacing (mm)": "Pas de la grille (mm)"
   },
   "es": {
     " — erlu IDEF0 editor": " — editor erlu IDEF0",
@@ -1285,7 +1291,9 @@
     "Hong Kong dollar": "Dólar de Hong Kong",
     "Singapore dollar": "Dólar de Singapur",
     "Russian ruble": "Rublo ruso",
-    "Conventional units": "Unidades convencionales"
+    "Conventional units": "Unidades convencionales",
+    "Grid mode": "Modo cuadrícula",
+    "Grid spacing (mm)": "Paso de la cuadrícula (mm)"
   },
   "ar": {
     " — erlu IDEF0 editor": " — محرر erlu IDEF0",
@@ -1607,7 +1615,9 @@
     "Hong Kong dollar": "دولار هونغ كونغ",
     "Singapore dollar": "دولار سنغافوري",
     "Russian ruble": "روبل روسي",
-    "Conventional units": "وحدات اعتبارية"
+    "Conventional units": "وحدات اعتبارية",
+    "Grid mode": "وضع الشبكة",
+    "Grid spacing (mm)": "تباعد الشبكة (مم)"
   },
   "zh": {
     " — erlu IDEF0 editor": " — erlu IDEF0 编辑器",
@@ -1929,6 +1939,8 @@
     "Hong Kong dollar": "港元",
     "Singapore dollar": "新加坡元",
     "Russian ruble": "俄罗斯卢布",
-    "Conventional units": "约定单位"
+    "Conventional units": "约定单位",
+    "Grid mode": "网格模式",
+    "Grid spacing (mm)": "网格间距（毫米）"
   }
 }

@@ -6,6 +6,7 @@ pub mod format;
 pub mod localization;
 pub mod model;
 pub mod render;
+pub mod routing;
 pub mod validation;
 pub use actions::*;
 pub use engine::*;

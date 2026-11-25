@@ -8,7 +8,7 @@ uses a snapshot and always rechecks its revision before committing.
 
 Action groups include document lifecycle/metadata, blocks, move/delete/selection,
 number swapping, arrows/branches/interfaces/tunnels, call mechanisms, decomposition
-and navigation, view/theme/language, undo/redo, validation, costs, exports, extension
+and navigation, view/theme/language/grid, undo/redo, validation, costs, exports, extension
 data and transactions. `erlu actions` emits the authoritative list and JSON schemas.
 A transaction takes typed `{action,args}` commands and accepts document edits only.
 Mouse move events and modal-dialog mechanics are represented by their semantic actions.
