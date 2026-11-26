@@ -569,7 +569,7 @@ impl eframe::App for ErluApp {
                 ui.separator();
                 if self.status.is_empty() {
                     ui.label(self.ui_text(
-                        "RMB: add block. LMB on port: drag arrow. Double click block: rename. MMB: block — one decomposition level down; elsewhere — one level up.",
+                        "RMB: add block. LMB on port: arrow. Double-click block: rename. MMB: block — one level down; elsewhere — one level up.",
                     ));
                 } else {
                     ui.colored_label(
