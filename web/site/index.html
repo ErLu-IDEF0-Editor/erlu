@@ -1,79 +1,119 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr" data-type="software">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f7fa">
+  <meta name="theme-color" content="#18191b">
+  <meta name="page-type" content="software">
+  <meta name="site-kind" content="software">
   <meta name="description" content="erlu is an open-source IDEF0 editor for desktop and the browser. Model functions, validate diagrams, and extend your workflow with WASM plugins.">
+  <meta name="twitter:card" content="summary">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="erlu — IDEF0 modeling, in your browser">
+  <meta property="og:description" content="Open-source functional modeling on desktop and in the browser.">
+  <meta property="og:image" content="https://erlu-idef0-editor.github.io/erlu/erlu-site.png">
   <title>erlu — IDEF0 modeling, in your browser</title>
-  <link rel="icon" href="./erlu.png" type="image/png">
+  <link rel="icon" href="./erlu-site.png" type="image/png">
   <link rel="stylesheet" href="./site.css">
   <script type="module" src="./site.js"></script>
 </head>
 <body>
   <a class="skip" href="#main" data-i18n="skip">Skip to content</a>
   <header class="header wrap">
-    <a class="brand" href="./" aria-label="erlu"><img src="./erlu.png" width="36" height="36" alt=""><span>erlu<span class="brand-dot">.</span></span></a>
+    <a class="brand" href="./" aria-label="erlu"><img src="./erlu-site.png" width="36" height="36" alt=""><span>erlu<span class="brand-dot">.</span></span></a>
     <nav aria-label="Main navigation" data-i18n-aria="navLabel">
       <a href="#features" data-i18n="navFeatures">Features</a>
       <a href="#plugins" data-i18n="navPlugins">Plugins</a>
       <a href="https://github.com/ErLu-IDEF0-Editor/erlu" data-i18n="source">Source code</a>
     </nav>
-    <label class="language"><span class="globe" aria-hidden="true">◎</span><span class="sr-only" data-i18n="language">Language</span>
+    <label class="language"><svg class="globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>
+      </svg><span class="sr-only" data-i18n="language">Language</span>
       <select id="language" aria-label="Language" data-i18n-aria="language">
         <option value="en" lang="en">English</option><option value="ru" lang="ru">Русский</option><option value="fr" lang="fr">Français</option><option value="es" lang="es">Español</option><option value="ar" lang="ar">العربية</option><option value="zh" lang="zh">中文</option>
       </select>
     </label>
   </header>
-  <main id="main">
-    <section class="hero wrap">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="small-line"></span><span data-i18n="eyebrow">OPEN SOURCE · IDEF0</span></p>
-        <h1 data-i18n="heroTitle">Make your processes clear.</h1>
-        <p class="lead" data-i18n="heroText">From the big picture to every function. Build IDEF0 models, connect inputs and outputs, and explore how your system works.</p>
-        <div class="actions"><a class="button primary" href="./editor.html" data-i18n="try">Try online</a><a class="button secondary" href="https://github.com/ErLu-IDEF0-Editor/erlu#readme" data-i18n="docs">Read the documentation</a></div>
-        <p class="hero-note" data-i18n="heroNote">No account. No installation. Your documents stay in your browser.</p>
+  <main id="main" tabindex="-1">
+    <section class="hero" data-enter>
+      <div class="wrap hero-layout">
+        <div class="hero-copy">
+          <h1 data-i18n="heroTitle">Open-source IDEF0 editor</h1>
+          <p class="lead" data-i18n="heroText">From the big picture to every function. Build IDEF0 models, connect inputs and outputs, and explore how your system works.</p>
+          <div class="actions">
+            <a class="button primary" href="./editor.html" data-i18n="try">Try online</a>
+            <a class="button secondary" href="https://github.com/ErLu-IDEF0-Editor/erlu#readme" data-i18n="docs">Read the documentation</a>
+          </div>
+          <p class="hero-note" data-i18n="heroNote">Start without an account or installation. Your documents stay in your browser.</p>
+        </div>
+        <figure class="model" data-visual>
+          <div class="model-bar"><span class="model-label" data-i18n="example">EXAMPLE MODEL</span><span class="notation">IDEF0 / A-0</span></div>
+          <svg viewBox="0 0 600 360" role="img" aria-labelledby="diagram-title" aria-describedby="diagram-description" xmlns="http://www.w3.org/2000/svg">
+            <title id="diagram-title" data-i18n="diagramTitle">A function connects a request, rules, a team, and a completed order.</title>
+            <desc id="diagram-description" data-i18n="diagramCaption">One function. Four kinds of connection.</desc>
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0 0L10 5L0 10Z" class="diagram-fill"/>
+              </marker>
+              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <circle cx="1" cy="1" r=".8" class="diagram-grid"/>
+              </pattern>
+            </defs>
+            <rect width="600" height="360" fill="url(#grid)"/>
+            <g class="diagram-stroke" stroke-width="2" fill="none" marker-end="url(#arrow)">
+              <path d="M25 180H165"/>
+              <path d="M435 180H575"/>
+              <path d="M300 47V118"/>
+              <path d="M300 315V242"/>
+            </g>
+            <rect class="diagram-node" x="165" y="118" width="270" height="124" rx="2" stroke-width="2"/>
+            <path class="diagram-rule" d="M165 201h270"/>
+            <g class="diagram-fill" text-anchor="middle" font-family="system-ui,sans-serif" font-size="20">
+              <text x="300" y="177" font-size="26" font-weight="600" data-i18n="diagramFunction">Fulfil an order</text>
+              <text x="300" y="228" font-size="17">A0</text>
+              <text x="88" y="160" data-i18n="diagramInput">Request</text>
+              <text x="510" y="160" data-i18n="diagramOutput">Order fulfilled</text>
+              <text x="300" y="35" data-i18n="diagramControl">Rules</text>
+              <text x="300" y="343" data-i18n="diagramMechanism">Team &amp; tools</text>
+            </g>
+          </svg>
+        </figure>
       </div>
-      <figure class="model">
-        <div class="model-bar"><span class="model-label" data-i18n="example">EXAMPLE MODEL</span><span class="notation">IDEF0 / A-0</span></div>
-        <svg viewBox="0 0 600 360" role="img" aria-labelledby="diagram-title" xmlns="http://www.w3.org/2000/svg">
-          <title id="diagram-title" data-i18n="diagramTitle">A function connects a request, rules, a team, and a completed order.</title>
-          <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#253b5b"/></marker><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#cbd5e1"/></pattern></defs>
-          <rect width="600" height="360" fill="url(#grid)"/>
-          <g stroke="#253b5b" stroke-width="2" fill="none" marker-end="url(#arrow)"><path d="M25 180 H165"/><path d="M435 180 H575"/><path d="M300 47 V118"/><path d="M300 315 V242"/></g>
-          <rect x="165" y="118" width="270" height="124" rx="2" fill="#fff" stroke="#253b5b" stroke-width="2"/>
-          <g fill="#253b5b" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16">
-            <text x="300" y="180" font-size="21" font-weight="600" data-i18n="diagramFunction">Fulfil an order</text>
-            <text x="300" y="222" font-size="14">A0</text>
-            <text x="88" y="160" data-i18n="diagramInput">Request</text>
-            <text x="510" y="160" data-i18n="diagramOutput">Order fulfilled</text>
-            <text x="300" y="35" data-i18n="diagramControl">Rules</text>
-            <text x="300" y="343" data-i18n="diagramMechanism">Team &amp; tools</text>
-          </g>
-        </svg>
-        <figcaption><span class="model-caption" data-i18n="diagramCaption">One function. Four kinds of connection.</span><span class="model-tag">I · C · O · M</span></figcaption>
-      </figure>
+      <div class="wrap platform-strip"><span data-i18n="platforms">In your browser. On Linux, Windows &amp; macOS.</span><span class="strip-detail" data-i18n="foundation">Rust + egui · One modeling engine</span></div>
     </section>
-    <div class="platform-strip"><div class="wrap strip-inner"><span data-i18n="platforms">In your browser. On Linux, Windows &amp; macOS.</span><span class="strip-detail" data-i18n="foundation">Rust + egui · One modeling engine</span></div></div>
-    <section class="features wrap section" id="features">
-      <div class="section-heading"><p class="eyebrow" data-i18n="featuresEyebrow">FROM CONTEXT TO DETAIL</p><h2 data-i18n="featuresTitle">A connected view of your system.</h2><p data-i18n="featuresIntro">Describe what a system does, what it needs, and what it delivers. Then break each function into smaller parts.</p></div>
-      <div class="feature-list">
-        <article><span class="feature-symbol" aria-hidden="true">⌘</span><div><h3 data-i18n="modelTitle">Build connected diagrams</h3><p data-i18n="modelText">Function blocks, orthogonal arrows, branches, and decomposition with inherited interfaces keep the big picture connected to the details.</p></div></article>
-        <article><span class="feature-symbol" aria-hidden="true">✓</span><div><h3 data-i18n="validateTitle">Check as you model</h3><p data-i18n="validateText">Find issues in structure, connections, numbering, and IDEF0 semantics. Document-wide undo and redo let you explore changes.</p></div></article>
-        <article><span class="feature-symbol" aria-hidden="true">↗</span><div><h3 data-i18n="exportTitle">Keep and share your work</h3><p data-i18n="exportText">Save editable .idef0 files and export PDF, SVG, or Markdown. Work locally, with offline browser access after the application is cached.</p></div></article>
+    <section class="features section" id="features">
+      <div class="wrap feature-layout">
+        <div class="section-heading"><h2 data-i18n="featuresTitle">A connected view of your system.</h2><p data-i18n="featuresIntro">Describe what a system does, what it needs, and what it delivers. Then break each function into smaller parts.</p></div>
+        <div class="feature-list">
+          <article>
+            <h3 data-i18n="modelTitle">Build connected diagrams</h3>
+            <p data-i18n="modelText">Function blocks, orthogonal arrows, branches, and decomposition with inherited interfaces keep the big picture connected to the details.</p>
+          </article>
+          <article>
+            <h3 data-i18n="validateTitle">Check as you model</h3>
+            <p data-i18n="validateText">Find issues in structure, connections, numbering, and IDEF0 semantics. Document-wide undo and redo let you explore changes.</p>
+          </article>
+          <article>
+            <h3 data-i18n="exportTitle">Keep and share your work</h3>
+            <p data-i18n="exportText">Save editable .idef0 files and export PDF, SVG, or Markdown. Work locally, with offline browser access after the application is cached.</p>
+          </article>
+        </div>
+        <figure class="editor-preview" data-visual>
+          <img src="./editor-preview.png" width="1280" height="900" loading="lazy" alt="The erlu editor showing the context diagram for fulfilling customer orders." data-i18n-alt="editorPreview">
+        </figure>
       </div>
     </section>
-    <section class="plugins-section" id="plugins"><div class="wrap section">
-      <div class="section-heading"><p class="eyebrow" data-i18n="pluginsEyebrow">EXTEND YOUR WORKFLOW</p><h2 data-i18n="pluginsTitle">Three plugins. Ready to use.</h2><p data-i18n="pluginsIntro">Bundled WASM plugins run on desktop and in the browser. Their edits share the editor’s undo and redo history.</p></div>
+    <section class="plugins-section section" id="plugins"><div class="wrap">
+      <div class="section-heading"><h2 data-i18n="pluginsTitle">Three built-in plugins</h2><p data-i18n="pluginsIntro">Bundled WASM plugins run on desktop and in the browser. Their edits share the editor’s undo and redo history.</p></div>
       <div class="plugin-grid">
-        <article class="plugin"><div class="plugin-icon colors" aria-hidden="true"><i></i><i></i><i></i></div><h3>Colors</h3><p data-i18n="colorsText">Give blocks and arrows color to make your model easier to read.</p></article>
-        <article class="plugin"><div class="plugin-icon raci" aria-hidden="true">R A C I</div><h3>Responsibility Map</h3><p data-i18n="responsibilityText">Assign roles and responsibilities, check assignments, and export a RACI matrix.</p></article>
-        <article class="plugin"><div class="plugin-icon dictionary" aria-hidden="true">Aa</div><h3>Semantic Dictionary</h3><p data-i18n="dictionaryText">Define concepts and synonyms, bind them to arrows, and keep labels consistent.</p></article>
+        <article class="plugin"><div class="plugin-mark colors" aria-hidden="true"><i></i><i></i><i></i><i></i></div><h3>Colors</h3><p data-i18n="colorsText">Give blocks and arrows color to make your model easier to read.</p></article>
+        <article class="plugin"><div class="plugin-mark raci" aria-hidden="true"><span>R</span><span>A</span><span>C</span><span>I</span></div><h3>Responsibility Map</h3><p data-i18n="responsibilityText">Assign roles and responsibilities, check assignments, and export a RACI matrix.</p></article>
+        <article class="plugin"><div class="plugin-mark dictionary" aria-hidden="true"><span>Aa</span><i></i><i></i></div><h3>Semantic Dictionary</h3><p data-i18n="dictionaryText">Define concepts and synonyms, bind them to arrows, and keep labels consistent.</p></article>
       </div>
       <a class="text-link" href="https://github.com/ErLu-IDEF0-Editor/erlu/blob/master/docs/plugins.md" data-i18n="pluginDocs">Explore the plugin SDK</a>
     </div></section>
-    <section class="wrap section final-section"><div><p class="eyebrow" data-i18n="startEyebrow">START WITH THE BIG PICTURE</p><h2 data-i18n="startTitle">Your first model is a click away.</h2><p data-i18n="startText">Open the editor, add a function, and map its connections. Save your work as a file whenever you need it.</p></div><a class="button primary" href="./editor.html" data-i18n="try">Try online</a></section>
+    <section class="final-section"><div class="wrap section closing-layout"><div><h2 data-i18n="startTitle">Build your first IDEF0 model</h2><p data-i18n="startText">Open the editor, add a function, and map its connections. Save your work as a file whenever you need it.</p></div><a class="button primary" href="./editor.html" data-i18n="try">Try online</a></div></section>
   </main>
-  <footer class="wrap footer"><a class="brand" href="./">erlu<span class="brand-dot">.</span></a><p data-i18n="footer">Open-source functional modeling · LGPL-3.0-or-later</p><a href="https://github.com/ErLu-IDEF0-Editor/erlu" data-i18n="source">Source code</a></footer>
+  <footer class="wrap footer"><a class="brand" href="./" aria-label="erlu"><span>erlu<span class="brand-dot">.</span></span></a><p data-i18n="footer">Open-source functional modeling · LGPL-3.0-or-later</p><a href="https://github.com/ErLu-IDEF0-Editor/erlu" data-i18n="source">Source code</a></footer>
 </body>
 </html>

@@ -11,6 +11,7 @@ function render(language){
  document.querySelector('meta[name="description"]').content=text.description;
  for(const node of document.querySelectorAll('[data-i18n]'))node.textContent=text[node.dataset.i18n];
  for(const node of document.querySelectorAll('[data-i18n-aria]'))node.setAttribute('aria-label',text[node.dataset.i18nAria]);
+ for(const node of document.querySelectorAll('[data-i18n-alt]'))node.alt=text[node.dataset.i18nAlt];
  picker.value=language;
  for(const link of document.querySelectorAll('a[href*="editor.html"]'))link.href=`./editor.html?lang=${language}`;
 }
