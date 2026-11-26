@@ -49,6 +49,14 @@ The Pages job runs Chromium under the repository subpath. To reproduce that path
 ERLU_BASE_PATH=/erlu/ CI=true npm --prefix web test -- --project chromium
 ```
 
+External plugin menu tests load a separate manifest through the GUI URL prompt,
+check the three/four visible action boundary (excluding confirmation-only actions),
+and run a WASM action through its generated form. They exercise both a legacy
+manifest without `title` and a named plugin. The package reuses the real Colors
+component; only the separate manifests are provided by the test HTTP route.
+Bundled submenu tests also cover Russian labels without repeated plugin names
+and opening an action form at desktop and narrow viewport widths.
+
 `FIREFOX_PATH` can select a Nix-compatible Firefox executable. Startup regression tests cover failed WASM downloads, all six language-menu entries, continued frame rendering, and online navigation with a stale editor in the offline cache.
 
 GUI clicks use Playwright’s default, undelayed `mouse.click`: it queues the press

@@ -22,6 +22,8 @@ pub struct PluginAction {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Manifest {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
     pub api_version: u32,
     pub version: String,
     pub component: String,

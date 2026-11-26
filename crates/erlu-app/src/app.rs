@@ -13,6 +13,13 @@ use std::{
     sync::{Arc, Mutex, mpsc},
 };
 
+#[derive(serde::Deserialize)]
+pub(crate) struct PluginMenu {
+    id: String,
+    title: String,
+    actions: Vec<ActionSpec>,
+}
+
 pub type SharedEngine = Arc<Mutex<Engine>>;
 // Read-only geometry of real controls; tests still send normal pointer events.
 fn ui_target(id: &str, response: &egui::Response, value: Option<&str>) {

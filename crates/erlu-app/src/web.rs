@@ -14,8 +14,8 @@ extern "C" {
     fn js_load_plugin();
     #[wasm_bindgen(js_namespace=erluRuntime,js_name=invokePluginUI)]
     fn js_invoke_plugin(id: &str, action: &str, args: &str, context: &str);
-    #[wasm_bindgen(js_namespace=erluRuntime,js_name=pluginSpecs)]
-    fn js_plugin_specs() -> String;
+    #[wasm_bindgen(js_namespace=erluRuntime,js_name=pluginMenus)]
+    fn js_plugin_menus() -> String;
     #[wasm_bindgen(js_namespace=erluRuntime,js_name=invokeRegistered)]
     fn js_invoke_registered(name: &str, args: &str, revision: f64);
     #[wasm_bindgen(js_namespace=erluRuntime,js_name=pollResults)]
@@ -53,8 +53,8 @@ pub fn load_plugin() {
 pub fn invoke_plugin(id: &str, action: &str, args: Value, state: &Engine) {
     js_invoke_plugin(id,action,&args.to_string(),&json!({"api_version":1,"document":state.document,"view":state.view,"revision":state.revision}).to_string());
 }
-pub fn plugin_specs() -> Vec<ActionSpec> {
-    serde_json::from_str(&js_plugin_specs()).unwrap_or_default()
+pub fn plugin_menus() -> Vec<crate::app::PluginMenu> {
+    serde_json::from_str(&js_plugin_menus()).unwrap_or_default()
 }
 pub fn invoke_registered(name: &str, args: Value, revision: u64) {
     js_invoke_registered(name, &args.to_string(), revision as f64);

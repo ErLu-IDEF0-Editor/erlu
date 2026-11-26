@@ -1,5 +1,6 @@
 {
   "id": "responsibility_map",
+  "title": "Responsibility Map",
   "api_version": 1,
   "version": "0.1.0",
   "component": "dist/responsibility_map.wasm",

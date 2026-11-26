@@ -14,7 +14,9 @@ impl ErluApp {
                         &self.language,
                     );
                     ui.horizontal(|ui| {
-                        if ui.button(self.ui_text("Run")).clicked() {
+                        let run = ui.button(self.ui_text("Run"));
+                        ui_target("plugin.form.run", &run, None);
+                        if run.clicked() {
                             self.invoke_registered(&form.spec.name, form.arguments.clone(), s);
                             keep = false;
                         }

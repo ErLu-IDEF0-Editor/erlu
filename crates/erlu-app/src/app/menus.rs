@@ -67,25 +67,35 @@ impl ErluApp {
                 });
             });
             ui_target("menu.view",&view_menu.response,None);
-            let specs=self.plugin_specs();
-            ui.menu_button(self.ui_text("Plugins"), |ui| {
+            let plugins=self.plugin_menus();
+            let menu=ui.menu_button(self.ui_text("Plugins"), |ui| {
                 if ui.button(self.ui_text("Set item color...")).clicked() {self.dialogs.colors=true;ui.close();}
                 if ui.button(self.ui_text("Clear item colors")).clicked() {self.plugin_color(snapshot,None);ui.close();}
-                for spec in specs {
-                    if spec.name.starts_with("plugin_colors_") || spec.input_schema["x-erlu-confirm-only"] == true {continue;}
-                    if ui.button(self.ui_text(&spec.description)).clicked() {
-                        let arguments=form_defaults(&spec.input_schema);self.dialogs.plugin=Some(PluginForm{spec,arguments});ui.close();
+                for plugin in plugins {
+                    if plugin.id == "colors" {continue;}
+                    let actions:Vec<_>=plugin.actions.iter().filter(|spec|spec.input_schema["x-erlu-confirm-only"] != true).collect();
+                    if actions.len()>3 {
+                        let submenu=ui.menu_button(self.ui_text(&plugin.title), |ui| {
+                            for spec in &actions {self.plugin_menu_action(ui,spec,Some(&plugin.title));}
+                        });
+                        ui_target(&format!("plugin.menu.{}",plugin.id),&submenu.response,Some(&plugin.title));
+                    } else {
+                        for spec in actions {self.plugin_menu_action(ui,spec,None);}
                     }
                 }
-                #[cfg(not(target_arch="wasm32"))]
-                if ui.button(self.ui_text("Load plugin…")).clicked() {
+                ui.separator();
+                let load=ui.button(self.ui_text("Connect external plugin…"));
+                ui_target("plugin.load",&load,None);
+                if load.clicked() {
+                    #[cfg(not(target_arch="wasm32"))]
                     if let Some(path)=rfd::FileDialog::new().add_filter(self.tr("Plugin manifest"),&["json"]).pick_file()
                         && let Err(e)=self.plugins.lock().unwrap().load(&path) {self.status=e.to_string();}
+                    #[cfg(target_arch="wasm32")]
+                    crate::web::load_plugin();
                     ui.close();
                 }
-                #[cfg(target_arch="wasm32")]
-                if ui.button(self.ui_text("Load plugin…")).clicked() {crate::web::load_plugin();ui.close();}
             });
+            ui_target("menu.plugins",&menu.response,None);
             egui::containers::menu::MenuButton::new("AI")
                 .config(egui::containers::menu::MenuConfig::new().close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside))
                 .ui(ui, |ui| {
@@ -183,14 +193,59 @@ impl ErluApp {
         }
         report
     }
-    pub(super) fn plugin_specs(&self) -> Vec<ActionSpec> {
+    fn plugin_menu_action(&mut self, ui: &mut egui::Ui, spec: &ActionSpec, submenu: Option<&str>) {
+        let description = self.tr(&spec.description);
+        let prefix = submenu.map(|title| format!("{} — ", self.tr(title)));
+        let label = prefix
+            .as_deref()
+            .and_then(|prefix| description.strip_prefix(prefix))
+            .unwrap_or(&description);
+        let button = ui.button(localization::display_text(label));
+        ui_target(
+            &format!("plugin.action.{}", spec.name),
+            &button,
+            Some(label),
+        );
+        if button.clicked() {
+            let arguments = form_defaults(&spec.input_schema);
+            self.dialogs.plugin = Some(PluginForm {
+                spec: spec.clone(),
+                arguments,
+            });
+            ui.close();
+        }
+    }
+    fn plugin_menus(&self) -> Vec<PluginMenu> {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            self.plugins.lock().unwrap().specs()
+            let host = self.plugins.lock().unwrap();
+            let specs = host.specs();
+            host.manifests()
+                .into_iter()
+                .map(|manifest| {
+                    let actions = manifest
+                        .actions
+                        .iter()
+                        .filter_map(|action| {
+                            let name =
+                                format!("plugin_{}_{}", manifest.id, action.name.replace('.', "_"));
+                            specs.iter().find(|spec| spec.name == name).cloned()
+                        })
+                        .collect();
+                    PluginMenu {
+                        title: manifest
+                            .title
+                            .filter(|title| !title.trim().is_empty())
+                            .unwrap_or_else(|| manifest.id.clone()),
+                        id: manifest.id,
+                        actions,
+                    }
+                })
+                .collect()
         }
         #[cfg(target_arch = "wasm32")]
         {
-            crate::web::plugin_specs()
+            crate::web::plugin_menus()
         }
     }
     pub(super) fn invoke_registered(&mut self, name: &str, args: Value, snapshot: &Engine) {

@@ -1,5 +1,6 @@
 {
   "id": "semantic_dictionary",
+  "title": "Semantic Dictionary",
   "api_version": 1,
   "version": "0.1.0",
   "component": "dist/semantic_dictionary.wasm",

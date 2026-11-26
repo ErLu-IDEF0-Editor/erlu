@@ -320,6 +320,10 @@
     "Singapore dollar": "Singapore dollar",
     "Russian ruble": "Russian ruble",
     "Conventional units": "Conventional units",
+    "Connect external plugin…": "Connect external plugin…",
+    "Colors": "Colors",
+    "Responsibility Map": "Responsibility Map",
+    "Semantic Dictionary": "Semantic Dictionary",
     "Grid mode": "Grid mode",
     "Grid spacing (mm)": "Grid spacing (mm)"
   },
@@ -644,6 +648,10 @@
     "Singapore dollar": "Сингапурский доллар",
     "Russian ruble": "Российский рубль",
     "Conventional units": "Условные единицы («жучок»)",
+    "Connect external plugin…": "Подключить внешний плагин…",
+    "Colors": "Цвета",
+    "Responsibility Map": "Карта ответственности",
+    "Semantic Dictionary": "Семантический словарь",
     "Grid mode": "Режим сетки",
     "Grid spacing (mm)": "Шаг сетки (мм)"
   },
@@ -968,6 +976,10 @@
     "Singapore dollar": "Dollar de Singapour",
     "Russian ruble": "Rouble russe",
     "Conventional units": "Unités conventionnelles",
+    "Connect external plugin…": "Connecter un plugin externe…",
+    "Colors": "Couleurs",
+    "Responsibility Map": "Carte des responsabilités",
+    "Semantic Dictionary": "Dictionnaire sémantique",
     "Grid mode": "Mode grille",
     "Grid spacing (mm)": "Pas de la grille (mm)"
   },
@@ -1292,6 +1304,10 @@
     "Singapore dollar": "Dólar de Singapur",
     "Russian ruble": "Rublo ruso",
     "Conventional units": "Unidades convencionales",
+    "Connect external plugin…": "Conectar un complemento externo…",
+    "Colors": "Colores",
+    "Responsibility Map": "Mapa de responsabilidades",
+    "Semantic Dictionary": "Diccionario semántico",
     "Grid mode": "Modo cuadrícula",
     "Grid spacing (mm)": "Paso de la cuadrícula (mm)"
   },
@@ -1616,6 +1632,10 @@
     "Singapore dollar": "دولار سنغافوري",
     "Russian ruble": "روبل روسي",
     "Conventional units": "وحدات اعتبارية",
+    "Connect external plugin…": "توصيل إضافة خارجية…",
+    "Colors": "الألوان",
+    "Responsibility Map": "خريطة المسؤوليات",
+    "Semantic Dictionary": "القاموس الدلالي",
     "Grid mode": "وضع الشبكة",
     "Grid spacing (mm)": "تباعد الشبكة (مم)"
   },
@@ -1940,6 +1960,10 @@
     "Singapore dollar": "新加坡元",
     "Russian ruble": "俄罗斯卢布",
     "Conventional units": "约定单位",
+    "Connect external plugin…": "连接外部插件…",
+    "Colors": "颜色",
+    "Responsibility Map": "责任分配图",
+    "Semantic Dictionary": "语义词典",
     "Grid mode": "网格模式",
     "Grid spacing (mm)": "网格间距（毫米）"
   }

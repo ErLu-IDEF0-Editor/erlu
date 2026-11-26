@@ -16,7 +16,7 @@ may contain diagnostic lists or exported text/bytes. GUI forms are generated fro
 action input schemas (string, number, boolean, enum and JSON values). Complex nested
 inputs use JSON fields. The result is available through MCP/web and the GUI report.
 
-A manifest declares `id`, `api_version`, package `version`, component path, optional
+A manifest declares `id`, an optional display `title`, `api_version`, package `version`, component path, optional
 browser binding path and action declarations with name, title, kind and input_schema.
 `plugins/colors/plugin.json` is the working example. Plugin action names are exposed
 as `plugin_<id>_<action-with-dots-replaced-by-underscores>` and are discoverable at
@@ -34,8 +34,28 @@ Neither host gives a component filesystem, network or DOM imports. A trapped/tim
 plugin never applies partial edits. Package-generated JavaScript is trusted host glue:
 web installations are restricted to SDK-built packages deployed on the application's
 own origin, not arbitrary remote JavaScript. Native accepts a selected manifest;
-web's Load plugin takes a same-origin manifest URL. Package installation itself is
+web's Connect external plugin takes a same-origin manifest URL. Package installation itself is
 an explicit user/deployment action.
+
+## Connect an external plugin
+
+You do not need to rebuild erlu to connect a separately distributed SDK v1 plugin.
+Open **Plugins → Connect external plugin…**:
+
+- **Desktop:** select the package's `plugin.json`. Keep its WASM component at the
+  path specified by `component`, relative to the manifest directory, for example
+  `dist/example.wasm`. No Rust toolchain is needed to use a prebuilt package.
+- **Web:** enter the manifest URL. The manifest, generated JavaScript bindings and
+  WASM assets must be hosted on the application's origin. Adding these static files
+  does not require recompiling erlu; arbitrary cross-origin JavaScript is unsupported.
+
+The plugin becomes available immediately for this session, in the menu and through
+MCP (desktop) or the web AI connector. Refresh the agent's tool list after loading.
+Plugins with more than three visible actions get a submenu; plugins with up to three
+keep their actions directly in Plugins. Confirmation-only actions are hidden and do
+not count toward the threshold. The submenu uses the optional manifest `title`,
+falling back to `id` for existing manifests. Built-in color actions retain their
+color picker and clear command.
 
 Own data belongs under `extensions[plugin-id]`, with a positive version and `data`.
 Use `extension_set` in a transaction. Preserve other plugins' namespaces. Declare
