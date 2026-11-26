@@ -36,8 +36,8 @@ test('grid menu and G shortcut enable snapping without editing the model',async(
  await ready(page);await call(page,'block_update',{id:2,title:'Grid test'});
  const before=(await call(page,'document_state')).response;
  await clickUi(page,'menu.view');await clickUi(page,'view.grid');
+ await expect.poll(async()=>(await call(page,'document_state')).response.result.view.grid).toEqual({enabled:true,spacing:5});
  let state=(await call(page,'document_state')).response;
- expect(state.result.view.grid).toEqual({enabled:true,spacing:5});
  expect(state.revision).toBe(before.revision);expect(state.result.document).toEqual(before.result.document);
  await page.keyboard.press('Escape');
  const {point}=await coordinates(page);
@@ -50,4 +50,24 @@ test('grid menu and G shortcut enable snapping without editing the model',async(
  await expect.poll(async()=>(await call(page,'document_state')).response.result.view.grid.enabled).toBe(false);
  await call(page,'undo');
  expect((await call(page,'document_state')).response.result.document).toEqual(before.result.document);
+});
+
+test('grid checkbox survives a slow rendered frame without losing a short mouse click',async({page})=>{
+ await ready(page);await call(page,'block_update',{id:2,title:'Slow frame test'});
+ const before=(await call(page,'document_state')).response;
+ await clickUi(page,'menu.view');
+ await page.locator('#erlu').evaluate(canvas=>{
+  canvas.addEventListener('mousedown',()=>{
+   requestAnimationFrame(()=>{
+    const until=performance.now()+1100;
+    while(performance.now()<until){} // Reproduce a shader/font upload exceeding egui's 0.8 s click limit.
+    window.erluSlowFrameFinished=true;
+   });
+  },{once:true,capture:true});
+ });
+ await clickUi(page,'view.grid');
+ await expect.poll(()=>page.evaluate(()=>window.erluSlowFrameFinished)).toBe(true);
+ await expect.poll(async()=>(await call(page,'document_state')).response.result.view.grid.enabled).toBe(true);
+ const after=(await call(page,'document_state')).response;
+ expect(after.revision).toBe(before.revision);expect(after.result.document).toEqual(before.result.document);
 });

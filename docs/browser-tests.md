@@ -50,3 +50,10 @@ ERLU_BASE_PATH=/erlu/ CI=true npm --prefix web test -- --project chromium
 ```
 
 `FIREFOX_PATH` can select a Nix-compatible Firefox executable. Startup regression tests cover failed WASM downloads, all six language-menu entries, continued frame rendering, and online navigation with a stale editor in the offline cache.
+
+GUI clicks use Playwright’s default, undelayed `mouse.click`: it queues the press
+and release together. Waiting for an egui frame between these events can turn a
+short click into a hold exceeding egui’s 0.8-second click limit when shader/font
+rendering stalls. A regression scenario stalls one rendered frame for 1.1 seconds
+and verifies that the real grid checkbox still toggles without editing the model.
+Assertions wait for committed application state after the gesture.
