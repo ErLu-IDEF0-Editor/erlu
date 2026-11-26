@@ -8,6 +8,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use erlu_core::*;
     use std::sync::{Arc, Mutex};
     let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if args.first().map(String::as_str) == Some("schema")
+        && args.get(1).is_some_and(|arg| arg == "dfd")
+    {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&schemars::schema_for!(dfd::Document))?
+        );
+        return Ok(());
+    }
     if args.first().map(String::as_str) == Some("schema") {
         println!(
             "{}",
@@ -35,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let doc = Document::with_meta(serde_json::from_str(meta)?);
         Engine::new(doc)?
     } else if let Some(path) = file {
-        Engine::new(read_document(&std::fs::read_to_string(path)?)?)?
+        Engine::from_file(&std::fs::read_to_string(path)?)?
     } else {
         Engine::default()
     };

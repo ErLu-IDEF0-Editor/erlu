@@ -26,10 +26,11 @@ inflated block bounds with bend penalties. Scene primitives feed both egui and S
 PDF embeds SVG form XObjects on physical pages. The bundled DejaVu Sans font avoids
 system-font dependence and supports Cyrillic and French.
 
-IDEF0 rules stay in the notation/model and validation layers. Another notation must
-register its own semantics, port rules, diagnostics and presentation before becoming
-a supported required feature. DFD and other IDEF variants are not placeholder modes;
-unknown required notations are rejected. The first plugin SDK cannot register notations.
+IDEF0 and DFD have separate document models, structural checks, diagnostics and
+scenes. The shared engine selects the active notation when creating, loading or
+recovering a document. Every child level uses its parent document's notation.
+The IDEF0 feature registry and plugin ABI remain specific to IDEF0. DFD uses its
+own versioned document schema and action variants.
 
 The browser app is statically hosted and processes documents locally. IndexedDB is
 recovery storage; service-worker precaching includes hashed wasm and plugin assets.

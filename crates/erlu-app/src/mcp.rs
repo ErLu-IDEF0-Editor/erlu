@@ -13,13 +13,15 @@ impl ErluMcp {
     fn tools(&self) -> Vec<Tool> {
         let mut specs = action_specs();
         specs.extend(host_action_specs());
-        specs.extend(self.plugins.lock().unwrap().specs());
+        if self.shared.lock().unwrap().dfd_document().is_none() {
+            specs.extend(self.plugins.lock().unwrap().specs());
+        }
         specs.into_iter().map(|s|{let mut schema=s.input_schema.as_object().cloned().unwrap_or_default();schema.entry("properties").or_insert(json!({}))["expected_revision"]=json!({"type":"integer","minimum":0,"description":"Reject changes if the current document revision differs"});Tool::new(s.name,s.description,schema).with_annotations(ToolAnnotations::new().read_only(s.read_only).open_world(false))}).collect()
     }
 }
 impl ServerHandler for ErluMcp {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions("IDEF0 desktop editor. Every edit uses the GUI transaction engine. Coordinates are millimetres. Read document_state first and pass expected_revision with edits. document_serialize returns a file; no implicit disk writes.")
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_instructions("IDEF0 and DFD desktop editor. Every edit uses the GUI transaction engine. Coordinates are millimetres. Read document_state first and pass expected_revision with edits. document_serialize returns a file; no implicit disk writes.")
     }
     async fn list_tools(
         &self,
@@ -55,7 +57,10 @@ impl ServerHandler for ErluMcp {
         };
         let name = request.name.to_string();
         let resolved = self.plugins.lock().unwrap().resolve(&name);
-        let result = if name == "plugin_list" {
+        let dfd_active = self.shared.lock().unwrap().dfd_document().is_some();
+        let result = if dfd_active && name.starts_with("plugin_") {
+            Err(error("wrong_notation", "Plugins are available in IDEF0 documents"))
+        } else if name == "plugin_list" {
             let state = self.shared.lock().unwrap();
             Ok(Response {
                 revision: state.revision,
@@ -85,7 +90,9 @@ impl ServerHandler for ErluMcp {
             }
         } else if let Some((id, action)) = resolved {
             let snapshot = self.shared.lock().unwrap().clone();
-            if expected.is_some_and(|r| r != snapshot.revision) {
+            if snapshot.dfd_document().is_some() {
+                Err(error("wrong_notation", "Plugins are available in IDEF0 documents"))
+            } else if expected.is_some_and(|r| r != snapshot.revision) {
                 Err(error("revision_conflict", "Document changed"))
             } else {
                 let output = self.plugins.lock().unwrap().invoke_output(

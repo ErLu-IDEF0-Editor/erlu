@@ -127,7 +127,7 @@ La interfaz, MCP, el conector web y los plugins comparten un registro de accione
 
 Los documentos utilizan JSON `.idef0` con versión y una lista explícita de capacidades. Un registro de migraciones y la conservación de datos opcionales desconocidos facilitan la compatibilidad futura. No se admiten los antiguos documentos Qt ni plugins Qt binarios.
 
-IDEF0 es la notación admitida. DFD, otras familias IDEF y BPMN no son modos de edición implementados.
+El menú Archivo permite crear documentos DFD independientes con extensión `.dfd`. Consulta la [guía de DFD](docs/dfd.md).
 
 ### Comprobaciones y compilación
 

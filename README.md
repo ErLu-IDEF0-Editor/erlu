@@ -2,7 +2,7 @@
 
 # erlu
 
-**An IDEF0 functional modeling editor for desktop and the browser, built with Rust and egui.**
+**An IDEF0 and DFD modeling editor for desktop and the browser, built with Rust and egui.**
 
 erlu helps you describe a system's functions and their inputs, controls, outputs, and mechanisms. Start with a context diagram and progressively expand your model through decomposition.
 
@@ -10,6 +10,7 @@ It is intended for analysts, engineers, and architects who use IDEF0 to understa
 
 ## Features
 
+- **Data flow diagrams** support decomposition, a data dictionary, and interface balancing.
 - **IDEF0 modeling:** function blocks, orthogonal arrows, branches, decomposition, inherited interfaces, tunnels, and function references.
 - **Document-wide history:** undo and redo survive navigation between diagrams and cover changes made through the UI, AI, and plugins.
 - **Model validation:** diagnostics for structure, connections, numbering, and IDEF0 semantic rules.
@@ -127,7 +128,7 @@ The UI, MCP, browser connector, and plugins share an action registry. Revision c
 
 Documents use a versioned JSON `.idef0` format with an explicit feature list. A migration registry and preservation of unknown optional data support future compatibility. Legacy Qt documents and binary Qt plugins are unsupported.
 
-IDEF0 is the currently supported notation. DFD, other IDEF families, and BPMN are not implemented editing modes.
+Choose **File → New DFD** to create a separate `.dfd` document with either Gane–Sarson or Yourdon–DeMarco symbols, a data dictionary and flow balancing. See the [DFD guide](docs/dfd.md) and [order fulfilment example](examples/order-fulfilment.dfd).
 
 ### Checks and builds
 

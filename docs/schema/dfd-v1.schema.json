@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Document",
+  "type": "object",
+  "properties": {
+    "diagrams": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^\\d+$": {
+          "$ref": "#/$defs/Diagram"
+        }
+      }
+    },
+    "dictionary": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^\\d+$": {
+          "$ref": "#/$defs/Definition"
+        }
+      }
+    },
+    "format": {
+      "type": "string"
+    },
+    "format_version": {
+      "$ref": "#/$defs/FormatVersion"
+    },
+    "id_sequence": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "root": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "style": {
+      "$ref": "#/$defs/Style"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "format_version",
+    "title",
+    "style",
+    "root",
+    "id_sequence",
+    "diagrams",
+    "dictionary"
+  ],
+  "$defs": {
+    "Definition": {
+      "type": "object",
+      "properties": {
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description",
+        "components"
+      ]
+    },
+    "Diagram": {
+      "type": "object",
+      "properties": {
+        "flows": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Flow"
+            }
+          }
+        },
+        "nodes": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^\\d+$": {
+              "$ref": "#/$defs/Node"
+            }
+          }
+        },
+        "parent": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "nodes",
+        "flows"
+      ]
+    },
+    "End": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "node"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "boundary"
+            },
+            "parent_flow": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "parent_flow"
+          ]
+        }
+      ]
+    },
+    "Flow": {
+      "type": "object",
+      "properties": {
+        "bends": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Point"
+          }
+        },
+        "data": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "from": {
+          "$ref": "#/$defs/End"
+        },
+        "label": {
+          "type": "string"
+        },
+        "to": {
+          "$ref": "#/$defs/End"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to",
+        "label"
+      ]
+    },
+    "FormatVersion": {
+      "type": "object",
+      "properties": {
+        "major": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "minor": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "major",
+        "minor"
+      ]
+    },
+    "Kind": {
+      "type": "string",
+      "enum": [
+        "process",
+        "external",
+        "store"
+      ]
+    },
+    "Node": {
+      "type": "object",
+      "properties": {
+        "child": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "data": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "position": {
+          "$ref": "#/$defs/Point"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "title",
+        "position"
+      ]
+    },
+    "Point": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ]
+    },
+    "Style": {
+      "type": "string",
+      "enum": [
+        "gane_sarson",
+        "yourdon_demarco"
+      ]
+    }
+  }
+}

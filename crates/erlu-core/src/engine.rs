@@ -37,8 +37,10 @@ pub struct Response {
 #[derive(Clone)]
 pub struct Engine {
     pub document: Document,
+    pub(crate) dfd: Option<crate::dfd_engine::Session>,
     pub view: View,
     pub revision: u64,
+    pub document_generation: u64,
     saved: Document,
     history: Vec<Document>,
     cursor: usize,
@@ -67,7 +69,9 @@ impl Engine {
             saved: document.clone(),
             history: vec![document.clone()],
             document,
+            dfd: None,
             revision: 0,
+            document_generation: 0,
             cursor: 0,
         })
     }
@@ -81,12 +85,21 @@ impl Engine {
         id
     }
     pub fn serialize_document(&self) -> String {
+        if let Some(dfd) = &self.dfd {
+            let mut doc = dfd.document.clone();
+            doc.id_sequence = dfd.next;
+            return serde_json::to_string_pretty(&doc).unwrap();
+        }
         let mut doc = self.document.clone();
         doc.id_sequence = self.next_id();
         serde_json::to_string_pretty(&doc).unwrap()
     }
     pub fn recovery_json(&self) -> String {
-        json!({"recovery_version":1,"document":serde_json::from_str::<Value>(&self.serialize_document()).unwrap(),"saved":self.saved,"dirty":self.dirty()}).to_string()
+        let saved = self
+            .dfd
+            .as_ref()
+            .map_or_else(|| json!(self.saved), |dfd| json!(dfd.saved));
+        json!({"recovery_version":1,"document":serde_json::from_str::<Value>(&self.serialize_document()).unwrap(),"saved":saved,"dirty":self.dirty()}).to_string()
     }
     pub fn restore_recovery(&mut self, text: &str) -> Result<()> {
         if self.dirty() {
@@ -97,11 +110,19 @@ impl Engine {
         }
         let value: Value =
             serde_json::from_str(text).map_err(|e| error("invalid_document", e.to_string()))?;
+        if value["document"]["format"] == crate::dfd::FORMAT {
+            let doc = crate::dfd::Document::read(&value["document"].to_string())?;
+            let saved = crate::dfd::Document::read(&value["saved"].to_string())?;
+            self.replace_dfd(doc);
+            self.dfd.as_mut().unwrap().saved = saved;
+            return Ok(());
+        }
         let doc = read_document(&value["document"].to_string())?;
         let saved = read_document(&value["saved"].to_string())?;
         let mut restored = Self::new(doc)?;
         restored.saved = saved;
         restored.revision = self.revision + 1;
+        restored.document_generation = self.document_generation + 1;
         restored.view.language = self.view.language.clone();
         restored.view.theme = self.view.theme;
         restored.view.grid = self.view.grid;
@@ -109,13 +130,25 @@ impl Engine {
         Ok(())
     }
     pub fn dirty(&self) -> bool {
-        self.document != self.saved
+        self.dfd.as_ref().map_or_else(
+            || self.document != self.saved,
+            |dfd| {
+                dfd.document.title != dfd.saved.title
+                    || dfd.document.style != dfd.saved.style
+                    || dfd.document.diagrams != dfd.saved.diagrams
+                    || dfd.document.dictionary != dfd.saved.dictionary
+            },
+        )
     }
     pub fn mark_saved(&mut self, revision: u64) -> Result<()> {
         if self.revision != revision {
             return Err(error("revision_conflict", "Document changed during save"));
         }
-        self.saved = self.document.clone();
+        if let Some(dfd) = &mut self.dfd {
+            dfd.saved = dfd.document.clone();
+        } else {
+            self.saved = self.document.clone();
+        }
         Ok(())
     }
     pub fn dispatch(&mut self, command: Command, expected: Option<u64>) -> Result<Response> {
@@ -124,6 +157,12 @@ impl Engine {
                 "revision_conflict",
                 format!("Expected {:?}, current {}", expected, self.revision),
             ));
+        }
+        if matches!(&command, Command::DfdNew { .. })
+            || self.dfd.is_some()
+            || matches!(&command, Command::DocumentOpen { json, .. } if Self::is_dfd_json(json))
+        {
+            return self.dispatch_dfd(command);
         }
         let before = self.clone();
         let lifecycle = matches!(
@@ -147,6 +186,9 @@ impl Engine {
                 return Err(e);
             }
         };
+        if lifecycle {
+            self.document_generation = before.document_generation + 1;
+        }
         if self.document != before.document || lifecycle {
             self.revision = before.revision + 1;
             if !is_history {
@@ -197,8 +239,9 @@ impl Engine {
             .get_mut(&id)
             .ok_or_else(|| error("not_found", "Arrow not found"))
     }
-    fn apply(&mut self, command: Command) -> Result<Value> {
+    pub(crate) fn apply(&mut self, command: Command) -> Result<Value> {
         match command {
+            Command::DfdNew { .. } | Command::DfdEdit { .. } => Err(Self::wrong_notation()),
             Command::DocumentNew { meta, discard } => {
                 if self.dirty() && !discard {
                     return Err(error(

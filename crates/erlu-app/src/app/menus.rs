@@ -3,7 +3,11 @@ use super::*;
 impl ErluApp {
     pub(super) fn menu(&mut self, ui: &mut egui::Ui, snapshot: &Engine) {
         egui::MenuBar::new().ui(ui, |ui| {
+            let dfd = snapshot.dfd_document();
             ui.menu_button(self.ui_text("File"), |ui| {
+                let new_dfd = ui.button(self.ui_text("New DFD"));
+                ui_target("file.new_dfd", &new_dfd, None);
+                if new_dfd.clicked() { self.request(Pending::NewDfd); ui.close(); }
                 for (label,action) in [("New",0),("Open…",1),("Save",2),("Save As…",3),("Export to PDF…",4),("Export to Markdown…",5),("Export to SVG…",6)] {
                     if ui.button(self.ui_text(label)).clicked() {
                         ui.close();
@@ -19,6 +23,7 @@ impl ErluApp {
                 for (label,command) in [("Undo",Command::Undo{}),("Redo",Command::Redo{}),("Delete",Command::ObjectsDelete{ids:snapshot.view.selection.iter().copied().collect()})] {
                     if ui.button(self.ui_text(label)).clicked() {self.execute(command);ui.close();}
                 }
+                if dfd.is_some() { return; }
                 if ui.button(self.ui_text("Swap numbers…")).clicked() {self.dialogs.swap=true;ui.close();}
                 if ui.button(self.ui_text("Call Mechanism add")).clicked() {self.dialogs.call=true;ui.close();}
                 let properties=ui.button(self.ui_text("Properties…"));
@@ -32,8 +37,17 @@ impl ErluApp {
             ui_target("menu.edit",&edit_menu.response,None);
             ui.menu_button(self.ui_text("Tools"), |ui| {
                 if ui.button(self.ui_text("Validation")).clicked() {
+                    if dfd.is_some() {
+                        self.dfd_ui.validation = true;
+                        ui.close();
+                        return;
+                    }
                     if let Some(r)=self.execute(Command::Validate{}) {self.dialogs.report_export=None;self.dialogs.report_confirm=None;self.dialogs.report=Some(self.validation_report(&r.result,snapshot));}
                     ui.close();
+                }
+                if dfd.is_some() {
+                    if ui.button(self.ui_text("Data dictionary")).clicked() { self.dfd_ui.dictionary = true; ui.close(); }
+                    return;
                 }
                 if ui.button(self.ui_text("Calculate Prices")).clicked() {
                     if let Some(r)=self.execute(Command::CalculatePrices{}) {self.dialogs.report_export=None;self.dialogs.report_confirm=None;self.dialogs.report=Some(format!("{}: {}",self.ui_text("Updated blocks"),r.result["updated_blocks"]));}
@@ -67,6 +81,7 @@ impl ErluApp {
                 });
             });
             ui_target("menu.view",&view_menu.response,None);
+            if dfd.is_none() {
             let plugins=self.plugin_menus();
             let menu=ui.menu_button(self.ui_text("Plugins"), |ui| {
                 if ui.button(self.ui_text("Set item color...")).clicked() {self.dialogs.colors=true;ui.close();}
@@ -96,13 +111,18 @@ impl ErluApp {
                 }
             });
             ui_target("menu.plugins",&menu.response,None);
-            egui::containers::menu::MenuButton::new("AI")
+            }
+            let ai = egui::containers::menu::MenuButton::new("AI")
                 .config(egui::containers::menu::MenuConfig::new().close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside))
                 .ui(ui, |ui| {
                     #[cfg(target_arch="wasm32")]
                     {
-                        let caption=self.ui_text("Allow agent for this tab");ui.checkbox(&mut self.ai_enabled,caption);
-                        ui.label(self.ui_text("Allowed origin"));ui.text_edit_singleline(&mut self.ai_origin);
+                        let caption=self.ui_text("Allow agent for this tab");
+                        let toggle=ui.checkbox(&mut self.ai_enabled,caption);
+                        ui_target("ai.enabled", &toggle, None);
+                        ui.label(self.ui_text("Allowed origin"));
+                        let origin=ui.text_edit_singleline(&mut self.ai_origin);
+                        ui_target("ai.origin", &origin, None);
                         if !self.ai_enabled {self.web_events.revoke();}
                         ui.label(self.ui_text("Connect using the erlu browser SDK"));
                     }
@@ -118,6 +138,7 @@ impl ErluApp {
                         }
                     }
                 });
+            ui_target("menu.ai", &ai.0, None);
             let language_menu=ui.menu_button(self.ui_text("Language"), |ui| {
                 for (language,label) in localization::LANGUAGES {
                     let option=ui.selectable_label(self.language==language,localization::display_text(label));
@@ -129,7 +150,7 @@ impl ErluApp {
             });
             ui_target("menu.language",&language_menu.response,None);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(format!("{}{}",if snapshot.dirty(){"● "}else{""},snapshot.document.meta.title));
+                ui.label(format!("{}{}",if snapshot.dirty(){"● "}else{""},dfd.map_or(snapshot.document.meta.title.as_str(), |doc| doc.title.as_str())));
             });
         });
     }

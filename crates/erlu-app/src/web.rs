@@ -150,6 +150,9 @@ impl WebHandle {
         }
     }
     pub fn plugin_apply(&self, commands: &str, expected: u64) -> String {
+        if self.shared.lock().unwrap().dfd_document().is_some() {
+            return json!({"ok":false,"error":error("wrong_notation", "Plugins are available in IDEF0 documents")}).to_string();
+        }
         let result = serde_json::from_str::<Vec<Command>>(commands)
             .map_err(|e| error("plugin_output", e.to_string()))
             .and_then(|commands| {

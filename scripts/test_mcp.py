@@ -58,7 +58,16 @@ try:
  normalized=tool(apply['name'],args)
  assert not normalized.get('isError'),normalized
  assert tool('object_get',{'id':arrow})['structuredContent']['result']['object']['label']=='Customer request'
- print(f'MCP stdio: {len(names)} tools, edits, conflicts, three WASM plugins and confirmed normalization OK')
+ assert {'dfd_new','dfd_edit'}<=names,names
+ dfd=tool('dfd_new',{'title':'Fulfil order','discard':True})['structuredContent']
+ assert tool('document_state')['structuredContent']['result']['document']['format']=='erlu-dfd'
+ external=tool('dfd_edit',{'edit':{'operation':'node_create','kind':'external','title':'Customer','position':{'x':-70,'y':0}},'expected_revision':dfd['revision']})['structuredContent']
+ incoming={'from':{'kind':'node','id':external['result']['id']},'to':{'kind':'node','id':2},'label':'Order','data':None}
+ assert not tool('dfd_edit',{'edit':{'operation':'flow_create','flow':incoming}}).get('isError')
+ issues=tool('validate')['structuredContent']['result']
+ assert {d['code'] for d in issues}=={'dfd_missing_output','dfd_undocumented_flow'},issues
+ assert 'wrong_notation' in str(tool('block_create',{'pos':{'x':0,'y':0}}))
+ print(f'MCP stdio: {len(names)} tools, IDEF0 and DFD edits, conflicts, three WASM plugins and confirmed normalization OK')
 finally:
  p.terminate()
  try:p.wait(timeout=5)

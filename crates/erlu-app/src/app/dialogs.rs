@@ -45,6 +45,11 @@ impl ErluApp {
                             self.perform(Pending::New);
                             self.dialogs.startup = false;
                         }
+                        let new_dfd = ui.button(self.ui_text("New DFD"));
+                        ui_target("startup.new_dfd", &new_dfd, None);
+                        if new_dfd.clicked() {
+                            self.request(Pending::NewDfd);
+                        }
                         if ui.button(self.ui_text("Cancel")).clicked() {
                             self.dialogs.startup = false;
                             #[cfg(not(target_arch = "wasm32"))]

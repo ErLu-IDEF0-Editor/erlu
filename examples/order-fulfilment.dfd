@@ -1,0 +1,212 @@
+{
+  "format": "erlu-dfd",
+  "format_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "title": "Order fulfilment",
+  "style": "gane_sarson",
+  "root": 1,
+  "id_sequence": 23,
+  "diagrams": {
+    "1": {
+      "parent": null,
+      "nodes": {
+        "2": {
+          "kind": "process",
+          "title": "Fulfil order",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "child": 7,
+          "data": null
+        },
+        "3": {
+          "kind": "external",
+          "title": "Customer",
+          "position": {
+            "x": -74,
+            "y": -15
+          },
+          "child": null,
+          "data": null
+        }
+      },
+      "flows": {
+        "4": {
+          "from": {
+            "kind": "node",
+            "id": 3
+          },
+          "to": {
+            "kind": "node",
+            "id": 2
+          },
+          "label": "Order",
+          "data": 12,
+          "bends": [
+            {
+              "x": -39,
+              "y": -18
+            }
+          ]
+        },
+        "5": {
+          "from": {
+            "kind": "node",
+            "id": 2
+          },
+          "to": {
+            "kind": "node",
+            "id": 3
+          },
+          "label": "Confirmation",
+          "data": 13,
+          "bends": [
+            {
+              "x": -38,
+              "y": 24
+            },
+            {
+              "x": -75,
+              "y": 24
+            }
+          ]
+        }
+      }
+    },
+    "7": {
+      "parent": 2,
+      "nodes": {
+        "8": {
+          "kind": "process",
+          "title": "Receive order",
+          "position": {
+            "x": -36,
+            "y": 0
+          },
+          "child": null,
+          "data": null
+        },
+        "9": {
+          "kind": "process",
+          "title": "Confirm order",
+          "position": {
+            "x": 38,
+            "y": 0
+          },
+          "child": null,
+          "data": null
+        },
+        "10": {
+          "kind": "store",
+          "title": "Orders",
+          "position": {
+            "x": 0,
+            "y": 35
+          },
+          "child": null,
+          "data": 12
+        }
+      },
+      "flows": {
+        "15": {
+          "from": {
+            "kind": "boundary",
+            "parent_flow": 4
+          },
+          "to": {
+            "kind": "node",
+            "id": 8
+          },
+          "label": "Customer details",
+          "data": 11
+        },
+        "16": {
+          "from": {
+            "kind": "boundary",
+            "parent_flow": 4
+          },
+          "to": {
+            "kind": "node",
+            "id": 8
+          },
+          "label": "Items",
+          "data": 14,
+          "bends": [
+            {
+              "x": -75,
+              "y": -24
+            },
+            {
+              "x": -36,
+              "y": -24
+            }
+          ]
+        },
+        "17": {
+          "from": {
+            "kind": "node",
+            "id": 8
+          },
+          "to": {
+            "kind": "node",
+            "id": 10
+          },
+          "label": "Received order",
+          "data": 12
+        },
+        "18": {
+          "from": {
+            "kind": "node",
+            "id": 10
+          },
+          "to": {
+            "kind": "node",
+            "id": 9
+          },
+          "label": "Order to confirm",
+          "data": 12
+        },
+        "19": {
+          "from": {
+            "kind": "node",
+            "id": 9
+          },
+          "to": {
+            "kind": "boundary",
+            "parent_flow": 5
+          },
+          "label": "",
+          "data": null
+        }
+      }
+    }
+  },
+  "dictionary": {
+    "11": {
+      "name": "Customer details",
+      "description": "Contact and delivery details from the customer.",
+      "components": []
+    },
+    "12": {
+      "name": "Order",
+      "description": "Order request and delivery information.",
+      "components": [
+        11,
+        14
+      ]
+    },
+    "13": {
+      "name": "Confirmation",
+      "description": "Order reference and confirmation message.",
+      "components": []
+    },
+    "14": {
+      "name": "Items",
+      "description": "Products and quantities the customer requests.",
+      "components": []
+    }
+  }
+}

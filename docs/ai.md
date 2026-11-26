@@ -13,6 +13,8 @@ data and transactions. `erlu actions` emits the authoritative list and JSON sche
 A transaction takes typed `{action,args}` commands and accepts document edits only.
 Mouse move events and modal-dialog mechanics are represented by their semantic actions.
 
+For DFD, use `dfd_new` and the typed operations of `dfd_edit`. Inspect `document.format` in `document_state` before editing. The DFD value is `erlu-dfd`. See the [DFD guide](dfd.md#file-format-and-automation).
+
 ## Desktop MCP
 
 Use a process-launching client configuration, for example:

@@ -13,6 +13,14 @@ pub enum Command {
         #[serde(default)]
         discard: bool,
     },
+    DfdNew {
+        title: String,
+        #[serde(default)]
+        discard: bool,
+    },
+    DfdEdit {
+        edit: crate::dfd::Edit,
+    },
     DocumentOpen {
         json: String,
         #[serde(default)]
@@ -175,6 +183,7 @@ impl Command {
         matches!(
             self,
             Self::DocumentMetadata { .. }
+                | Self::DfdEdit { .. }
                 | Self::BlockCreate { .. }
                 | Self::BlockUpdate { .. }
                 | Self::ObjectsMove { .. }

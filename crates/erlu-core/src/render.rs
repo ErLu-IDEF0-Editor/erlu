@@ -180,7 +180,7 @@ fn blocked(a: Point, b: Point, obs: &[(Point, Point)]) -> bool {
         }
     })
 }
-fn manhattan(start: Point, end: Point, obs: &[(Point, Point)]) -> Vec<Point> {
+pub(crate) fn manhattan(start: Point, end: Point, obs: &[(Point, Point)]) -> Vec<Point> {
     let mut xs = vec![start.x, end.x];
     let mut ys = vec![start.y, end.y];
     for (lo, hi) in obs {
@@ -718,13 +718,18 @@ pub fn svg_localized(
     page: Option<usize>,
     language: &str,
 ) -> String {
-    let scene = scene_localized(doc, d, dark, page, language);
+    scene_svg(
+        scene_localized(doc, d, dark, page, language),
+        Point::default(),
+    )
+}
+pub fn scene_svg(scene: Scene, center: Point) -> String {
     let mut out = format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{}mm" height="{}mm" viewBox="{} {} {} {}">"#,
         scene.size.x,
         scene.size.y,
-        -scene.size.x / 2.,
-        -scene.size.y / 2.,
+        center.x - scene.size.x / 2.,
+        center.y - scene.size.y / 2.,
         scene.size.x,
         scene.size.y
     );
@@ -799,6 +804,14 @@ pub fn pdf_localized(
     dark: bool,
     language: &str,
 ) -> crate::Result<Vec<u8>> {
+    pdf_pages(diagrams.iter().enumerate().map(|(i, &d)| {
+        (
+            svg_localized(doc, d, dark, numbers.then_some(i + 1), language),
+            doc.page(),
+        )
+    }))
+}
+pub fn pdf_pages(pages_data: impl IntoIterator<Item = (String, Point)>) -> crate::Result<Vec<u8>> {
     // PDF backend is shared by native and wasm; no system font or filesystem lookup.
     let mut options = svg2pdf::usvg::Options::default();
     options.fontdb_mut().load_font_data(FONT.to_vec());
@@ -808,8 +821,7 @@ pub fn pdf_localized(
     let pages = pdf_writer::Ref::new(2);
     let mut next = 3;
     let mut kids = vec![];
-    for (i, &d) in diagrams.iter().enumerate() {
-        let xml = svg_localized(doc, d, dark, numbers.then_some(i + 1), language);
+    for (xml, size) in pages_data {
         let tree = svg2pdf::usvg::Tree::from_str(&xml, &options)
             .map_err(|e| error("export_failed", e.to_string()))?;
         let (chunk, root) = svg2pdf::to_chunk(&tree, svg2pdf::ConversionOptions::default())
@@ -829,7 +841,6 @@ pub fn pdf_localized(
         let content_id = pdf_writer::Ref::new(next + 1);
         next += 2;
         kids.push(page_id);
-        let size = doc.page();
         let w = (size.x * 72. / 25.4) as f32;
         let h = (size.y * 72. / 25.4) as f32;
         {

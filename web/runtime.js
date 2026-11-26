@@ -29,6 +29,7 @@ export function createRuntime() {
   function revoke() {for (const port of ports) {port.postMessage({protocol:PROTOCOL,type:'revoked'});port.close();}ports.clear();}
   async function call(name,args={},revision) {
     if (!handle) return failure('not_ready','Editor is not ready');
+    if(name.startsWith('plugin_')&&isDfd())return failure('wrong_notation','Plugins are available in IDEF0 documents');
     if(name==='plugin_list'){const state=JSON.parse(handle.call('document_state','{}',undefined)).response;return {ok:true,response:{revision:state.revision,dirty:state.dirty,result:Array.from(plugins.values(),p=>p.manifest)}};}
     if(name==='plugin_load'){try{await installPlugin(args.source);const state=JSON.parse(handle.call('document_state','{}',undefined)).response;return {ok:true,response:{revision:state.revision,dirty:state.dirty,result:{}}};}catch(error){return failure('plugin_load',String(error));}}
     if (name.startsWith('plugin_')) {
@@ -66,7 +67,8 @@ export function createRuntime() {
     };
     port.start();port.postMessage({protocol:PROTOCOL,type:'connected',session,version:1});
   });
-  function actionSpecs(){if(!handle)return [];return [...JSON.parse(handle.actions()),...Array.from(plugins,([id,p])=>p.manifest.actions.map(a=>({name:`plugin_${id}_${a.name.replaceAll('.','_')}`,description:a.title,input_schema:a.input_schema,read_only:a.kind!=='command'}))).flat()];}
+  function isDfd(){return JSON.parse(handle.call('document_state','{}',undefined)).response.result.document.format==='erlu-dfd';}
+  function actionSpecs(){if(!handle)return [];const actions=JSON.parse(handle.actions());if(isDfd())return actions.filter(action=>!action.name.startsWith('plugin_'));return [...actions,...Array.from(plugins,([id,p])=>p.manifest.actions.map(a=>({name:`plugin_${id}_${a.name.replaceAll('.','_')}`,description:a.title,input_schema:a.input_schema,read_only:a.kind!=='command'}))).flat()];}
   function workerRequest(plugin,action,context) {
     // A fresh worker prevents persistent untrusted state and makes timeout cancellation reliable.
     return new Promise((resolve,reject)=>{
@@ -82,6 +84,7 @@ export function createRuntime() {
       const plugin=plugins.get(id);if(!plugin)throw new Error(`Plugin ${id} is not loaded`);
       const spec=plugin.manifest.actions.find(a=>a.name===action);if(!spec)throw new Error('Action not registered');
       const state=JSON.parse(handle.call('document_state','{}',undefined)).response;
+      if(state.result.document.format==='erlu-dfd')return failure('wrong_notation','Plugins are available in IDEF0 documents');
       if(expected!==undefined&&Number(expected)!==state.revision)return failure('revision_conflict','Document changed');
       const context=providedContext?JSON.parse(providedContext):{api_version:1,...state.result,revision:state.revision};context.arguments=typeof args==='string'?JSON.parse(args):args;
       const output=await workerRequest(plugin,action,JSON.stringify(context));

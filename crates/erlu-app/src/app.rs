@@ -1,4 +1,5 @@
 mod canvas;
+mod dfd_ui;
 mod dialogs;
 mod menus;
 
@@ -70,6 +71,7 @@ enum Drag {
 }
 enum Pending {
     New,
+    NewDfd,
     Open,
     Loaded(String, String),
     Close,
@@ -111,6 +113,7 @@ struct Dialogs {
 pub struct ErluApp {
     pub shared: SharedEngine,
     dialogs: Dialogs,
+    dfd_ui: dfd_ui::Editor,
     pending: Option<Pending>,
     drag: Option<Drag>,
     drag_revision: u64,
@@ -131,6 +134,7 @@ pub struct ErluApp {
     #[cfg(target_arch = "wasm32")]
     pub web_events: crate::web::WebEvents,
     last_revision: u64,
+    document_generation: u64,
     last_dirty: bool,
     has_document: bool,
     pinch_scale: f32,
@@ -184,6 +188,7 @@ impl ErluApp {
                 .filter(|g| g.spacing.is_finite() && (1.0..=50.0).contains(&g.spacing))
                 .unwrap_or_default();
         }
+        let document_generation = shared.lock().unwrap().document_generation;
         Self {
             shared,
             dialogs: Dialogs {
@@ -197,6 +202,7 @@ impl ErluApp {
             drag_revision: 0,
             cursor: None,
             box_rect: None,
+            dfd_ui: dfd_ui::Editor::default(),
             file_name: String::new(),
             status: String::new(),
             tx,
@@ -211,6 +217,7 @@ impl ErluApp {
             plugins: Arc::new(Mutex::new(erlu_plugins::PluginHost::default())),
             #[cfg(target_arch = "wasm32")]
             web_events: crate::web::WebEvents::default(),
+            document_generation,
             last_revision: 0,
             last_dirty: false,
             has_document: !startup,
@@ -229,7 +236,16 @@ impl ErluApp {
         localization::display_text(&self.tr(s))
     }
     fn execute(&mut self, c: Command) -> Option<Response> {
-        let result = self.shared.lock().unwrap().dispatch(c, None);
+        let result = {
+            let mut state = self.shared.lock().unwrap();
+            let result = state.dispatch(c, None);
+            if self.document_generation != state.document_generation {
+                self.document_generation = state.document_generation;
+                self.file_name.clear();
+                self.dfd_ui = dfd_ui::Editor::default();
+            }
+            result
+        };
         match result {
             Ok(r) => {
                 self.status.clear();
@@ -282,6 +298,20 @@ impl ErluApp {
                 self.dialogs.state = DiagramState::Working;
                 self.dialogs.tab = 0;
             }
+            Pending::NewDfd => {
+                if self
+                    .execute(Command::DfdNew {
+                        title: self.tr("Untitled"),
+                        discard: true,
+                    })
+                    .is_some()
+                {
+                    self.dfd_ui = dfd_ui::Editor::default();
+                    self.file_name.clear();
+                    self.dialogs.startup = false;
+                    self.has_document = true;
+                }
+            }
             Pending::Open => self.open_file(),
             Pending::Loaded(content, name) => {
                 if self
@@ -292,6 +322,7 @@ impl ErluApp {
                     .is_some()
                 {
                     self.file_name = name;
+                    self.dfd_ui = dfd_ui::Editor::default();
                     self.dialogs.startup = false;
                     self.has_document = true;
                 }
@@ -306,7 +337,7 @@ impl ErluApp {
         std::thread::spawn(move || {
             if let Some(path) = rfd::FileDialog::new()
                 .set_title(ctx_name)
-                .add_filter("IDEF0", &["idef0", "json"])
+                .add_filter("erlu", &["idef0", "dfd", "json"])
                 .pick_file()
             {
                 match std::fs::read_to_string(&path) {
@@ -323,7 +354,7 @@ impl ErluApp {
         wasm_bindgen_futures::spawn_local(async move {
             if let Some(file) = rfd::AsyncFileDialog::new()
                 .set_title(ctx_name)
-                .add_filter("IDEF0", &["idef0", "json"])
+                .add_filter("erlu", &["idef0", "dfd", "json"])
                 .pick_file()
                 .await
             {
@@ -342,19 +373,25 @@ impl ErluApp {
         let engine = self.shared.lock().unwrap();
         let revision = engine.revision;
         let text = engine.serialize_document();
+        let extension = if engine.dfd_document().is_some() {
+            "dfd"
+        } else {
+            "idef0"
+        };
         drop(engine);
         let tx = self.tx.clone();
-        let name = if self.file_name.is_empty() {
-            "diagram.idef0".into()
+        let unnamed = self.file_name.is_empty();
+        let name = if unnamed {
+            format!("diagram.{extension}")
         } else {
             self.file_name.clone()
         };
         #[cfg(not(target_arch = "wasm32"))]
         std::thread::spawn(move || {
-            let path = if save_as || name == "diagram.idef0" {
+            let path = if save_as || unnamed {
                 rfd::FileDialog::new()
                     .set_file_name(&name)
-                    .add_filter("IDEF0", &["idef0"])
+                    .add_filter("erlu", &[extension])
                     .save_file()
             } else {
                 Some(std::path::PathBuf::from(name))
@@ -458,6 +495,13 @@ impl eframe::App for ErluApp {
         #[cfg(target_arch = "wasm32")]
         crate::web::ui_frame();
         for file in ctx.input(|i| i.raw.dropped_files.clone()) {
+            #[cfg(target_arch = "wasm32")]
+            let name = file
+                .path()
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            #[cfg(not(target_arch = "wasm32"))]
             let name = file.path().to_string_lossy().to_string();
             let tx = self.tx.clone();
             #[cfg(not(target_arch = "wasm32"))]
@@ -510,6 +554,18 @@ impl eframe::App for ErluApp {
         }
         let s = self.shared.lock().unwrap().clone();
         self.language = s.view.language.clone();
+        if self.document_generation != s.document_generation {
+            self.document_generation = s.document_generation;
+            self.file_name.clear();
+            self.dfd_ui = dfd_ui::Editor::default();
+            self.dialogs.metadata = None;
+            self.dialogs.block = None;
+            self.dialogs.arrow = None;
+            self.dialogs.plugin = None;
+            self.dialogs.tree = false;
+            self.drag = None;
+            self.has_document = true;
+        }
         if s.revision > 0 {
             self.dialogs.startup = false;
         }
@@ -542,7 +598,11 @@ impl eframe::App for ErluApp {
                 self.allow_close = true;
             }
         } else if !self.has_modal() {
-            self.keyboard(&ctx, &s);
+            if s.dfd_document().is_some() {
+                self.dfd_keyboard(&ctx, &s);
+            } else {
+                self.keyboard(&ctx, &s);
+            }
         }
         if ctx.input(|i| i.viewport().close_requested()) && !self.allow_close && s.dirty() {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -552,12 +612,17 @@ impl eframe::App for ErluApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
-            "{}{} — erlu IDEF0",
+            "{}{} — erlu {}",
             if s.dirty() { "*" } else { "" },
             if self.file_name.is_empty() {
                 self.tr("Untitled")
             } else {
                 self.file_name.clone()
+            },
+            if s.dfd_document().is_some() {
+                "DFD"
+            } else {
+                "IDEF0"
             }
         )));
         egui::Panel::top("menu").show(ui, |ui| {
@@ -565,19 +630,27 @@ impl eframe::App for ErluApp {
         });
         egui::Panel::bottom("status").show(ui, |ui| {
             ui.horizontal(|ui| {
-                if s.view.diagram != s.document.root && ui.button("↑").clicked() {
+                let dfd = s.dfd_document();
+                let root = dfd.map_or(s.document.root, |d| d.root);
+                if s.view.diagram != root && ui.button("↑").clicked() {
                     self.execute(Command::NavigateUp {});
                 }
-                ui.label(format!(
-                    "{} · {}",
-                    s.document.node(s.view.diagram),
-                    s.document.title(s.view.diagram)
-                ));
+                if let Some(doc) = dfd {
+                    ui.label(doc.diagram_title(s.view.diagram));
+                } else {
+                    ui.label(format!(
+                        "{} · {}",
+                        s.document.node(s.view.diagram),
+                        s.document.title(s.view.diagram)
+                    ));
+                }
                 ui.separator();
                 if self.status.is_empty() {
-                    ui.label(self.ui_text(
-                        "RMB: add block. LMB on port: arrow. Double-click block: rename. MMB: block — one level down; elsewhere — one level up.",
-                    ));
+                    ui.label(self.ui_text(if dfd.is_some() {
+                        "RMB: add DFD element. Choose Data flow to connect two endpoints."
+                    } else {
+                        "RMB: add block. LMB on port: arrow. Double-click block: rename. MMB: block — one level down; elsewhere — one level up."
+                    }));
                 } else {
                     ui.colored_label(
                         Color32::from_rgb(200, 100, 60),
@@ -589,7 +662,13 @@ impl eframe::App for ErluApp {
                 });
             });
         });
-        egui::CentralPanel::default().show(ui, |ui| self.canvas(ui, &s));
+        egui::CentralPanel::default().show(ui, |ui| {
+            if let Some(doc) = s.dfd_document() {
+                self.dfd_canvas(ui, &s, doc);
+            } else {
+                self.canvas(ui, &s);
+            }
+        });
         self.dialogs(&ctx, &s);
         ctx.request_repaint_after(std::time::Duration::from_millis(150));
     }
